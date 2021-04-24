@@ -166,7 +166,6 @@ static std::unique_ptr<ExprAST> ParseParenExpr(TokIt &tok_it) {
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
 static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
-
     std::vector<std::unique_ptr<ExprAST>> args;
 
     auto ident = std::get_if<pol::Identifier>(&(*tok_it));
@@ -181,13 +180,14 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
 
     // Call.
     ++tok_it;  // eat (
-    std::vector<std::unique_ptr<ExprAST>> Args;
     if (!pol::isCloseParen(*tok_it)) {
         while (true) {
-            if (auto arg = ParseExpression(tok_it))
+            if (auto arg = ParseExpression(tok_it)) {
                 args.push_back(std::move(arg));
-            else
+            }
+            else {
                 return nullptr;
+            }
 
             if (pol::isCloseParen(*tok_it)) {
                 break;
@@ -203,7 +203,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
     // Eat the ')'.
     ++tok_it;
 
-    return std::make_unique<CallExprAST>(ident->m_name, std::move(Args));
+    return std::make_unique<CallExprAST>(ident->m_name, std::move(args));
 }
 
 /// primary
@@ -211,7 +211,6 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
 ///   ::= numberexpr
 ///   ::= parenexpr
 static std::unique_ptr<ExprAST> ParsePrimary(TokIt &tok_it) {
-
     if (pol::isOpenParen(*tok_it)) {
         return ParseParenExpr(tok_it);
     } else if (std::holds_alternative<pol::Identifier>(*tok_it)) {
@@ -229,7 +228,6 @@ static std::unique_ptr<ExprAST> ParsePrimary(TokIt &tok_it) {
 ///   ::= ('+' primary)*
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int exprPrec, std::unique_ptr<ExprAST> lhs,
                                               TokIt &tok_it) {
-
     // If this is a binop, find its precedence.
     while (true) {
         int tokPrec = GetTokPrecedence(*tok_it);
@@ -354,8 +352,8 @@ static std::unique_ptr<Module>        TheModule;
 static std::unique_ptr<IRBuilder<>>   Builder;
 static std::map<std::string, Value *> NamedValues;
 
-Value *LogErrorV(const char *Str) {
-    LogError(Str);
+Value *LogErrorV(const std::string& str) {
+    std::cout << "Error: " << str << std::endl;
     return nullptr;
 }
 
@@ -392,10 +390,16 @@ Value *BinaryExprAST::codegen() {
 Value *CallExprAST::codegen() {
     // Look up the name in the global module table.
     Function *CalleeF = TheModule->getFunction(Callee);
-    if (!CalleeF) return LogErrorV("Unknown function referenced");
+    if (!CalleeF) {
+        return LogErrorV("Unknown function referenced");
+    }
 
     // If argument mismatch error.
-    if (CalleeF->arg_size() != Args.size()) return LogErrorV("Incorrect # arguments passed");
+    if (CalleeF->arg_size() != Args.size()) {
+        return LogErrorV(
+            fmt::format("Incorrect # arguments passed {0} vs {1}",
+                        CalleeF->arg_size(), Args.size()));
+    }
 
     std::vector<Value *> ArgsV;
     for (unsigned i = 0, e = Args.size(); i != e; ++i) {
@@ -516,15 +520,11 @@ static void processTokens(std::vector<pol::Token> tokens) {
             return;
         } else if (std::holds_alternative<pol::Keyword>(*tok_it)) {
             auto kw = std::get<pol::Keyword>(*tok_it);
-            switch (kw) {
-                case pol::Keyword::k_def:
-                    HandleDefinition(tok_it);
-                    break;
-                case pol::Keyword::k_extern:
-                    HandleExtern(tok_it);
-                    break;
+            if (kw == pol::Keyword::k_def) {
+                HandleDefinition(tok_it);
+            } else if (kw == pol::Keyword::k_extern) {
+                HandleExtern(tok_it);
             }
-            return;
         } else if (pol::isOp(*tok_it, ';')) {
             ++tok_it;
             continue;
