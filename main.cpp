@@ -138,8 +138,8 @@ std::unique_ptr<ExprAST> LogError(const std::string &str) {
     return nullptr;
 }
 
-std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
-    LogError(Str);
+std::unique_ptr<PrototypeAST> LogErrorP(const std::string &str) {
+    std::cout << "Error: " << str << std::endl;
     return nullptr;
 }
 
@@ -166,10 +166,11 @@ static std::unique_ptr<ExprAST> ParseParenExpr(TokIt &tok_it) {
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
 static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
+
     std::vector<std::unique_ptr<ExprAST>> args;
 
     auto ident = std::get_if<pol::Identifier>(&(*tok_it));
-    if (ident) {
+    if (!ident) {
         return LogError("expected identifier");
     }
     ++tok_it;
@@ -210,10 +211,11 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
 ///   ::= numberexpr
 ///   ::= parenexpr
 static std::unique_ptr<ExprAST> ParsePrimary(TokIt &tok_it) {
+
     if (pol::isOpenParen(*tok_it)) {
-        ParseParenExpr(tok_it);
+        return ParseParenExpr(tok_it);
     } else if (std::holds_alternative<pol::Identifier>(*tok_it)) {
-        ParseIdentifierExpr(tok_it);
+        return ParseIdentifierExpr(tok_it);
     } else if (std::holds_alternative<pol::Number>(*tok_it)) {
         auto expr = std::make_unique<NumberExprAST>(std::get<pol::Number>(*tok_it).m_value);
         ++tok_it;
@@ -227,6 +229,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(TokIt &tok_it) {
 ///   ::= ('+' primary)*
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int exprPrec, std::unique_ptr<ExprAST> lhs,
                                               TokIt &tok_it) {
+
     // If this is a binop, find its precedence.
     while (true) {
         int tokPrec = GetTokPrecedence(*tok_it);
@@ -303,8 +306,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(TokIt &tok_it) {
         } else if (pol::isCloseParen(*tok_it)) {
             ++tok_it;
             break;
+        } else {
+            return LogErrorP(
+                fmt::format("Unexpected token in prototype: {0}", pol::Lexer::toString(*tok_it)));
         }
-        ++tok_it;
     }
 
     return std::make_unique<PrototypeAST>(fn_name, std::move(args));
