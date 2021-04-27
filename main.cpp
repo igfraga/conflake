@@ -26,8 +26,6 @@ using namespace llvm;
 
 using TokIt = std::vector<pol::Token>::iterator;
 
-static std::map<char, int> BinopPrecedence;
-
 //===----------------------------------------------------------------------===//
 // Abstract Syntax Tree (aka Parse Tree)
 //===----------------------------------------------------------------------===//
@@ -119,18 +117,31 @@ class FunctionAST {
 // Parser
 //===----------------------------------------------------------------------===//
 
-/// GetTokPrecedence - Get the precedence of the pending binary operator token.
-static int GetTokPrecedence(const pol::Token &tok) {
-    auto op = std::get_if<pol::Operator>(&tok);
-    if (!op) {
-        return -1;
+class Parser {
+   public:
+    static int tokPrecedence(const pol::Token &tok) {
+        static std::map<char, int> binopPrecedence;
+        if (binopPrecedence.empty()) {
+            // Install standard binary operators.
+            // 1 is lowest precedence.
+            binopPrecedence['<'] = 10;
+            binopPrecedence['+'] = 20;
+            binopPrecedence['-'] = 20;
+            binopPrecedence['*'] = 40;  // highest.
+        }
+        auto op = std::get_if<pol::Operator>(&tok);
+        if (!op) {
+            return -1;
+        }
+        auto fo = binopPrecedence.find(op->m_op);
+        if (fo == binopPrecedence.end()) {
+            return -1;
+        }
+        return fo->second;
     }
-    auto fo = BinopPrecedence.find(op->m_op);
-    if (fo == BinopPrecedence.end()) {
-        return -1;
-    }
-    return fo->second;
-}
+
+   private:
+};
 
 /// LogError* - These are little helper functions for error handling.
 std::unique_ptr<ExprAST> LogError(const std::string &str) {
@@ -184,8 +195,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
         while (true) {
             if (auto arg = ParseExpression(tok_it)) {
                 args.push_back(std::move(arg));
-            }
-            else {
+            } else {
                 return nullptr;
             }
 
@@ -230,7 +240,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int exprPrec, std::unique_ptr<Expr
                                               TokIt &tok_it) {
     // If this is a binop, find its precedence.
     while (true) {
-        int tokPrec = GetTokPrecedence(*tok_it);
+        int tokPrec = Parser::tokPrecedence(*tok_it);
 
         // If this is a binop that binds at least as tightly as the current binop,
         // consume it, otherwise we are done.
@@ -253,7 +263,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int exprPrec, std::unique_ptr<Expr
 
         // If BinOp binds less tightly with RHS than the operator after RHS, let
         // the pending operator take RHS as its LHS.
-        int nextPrec = GetTokPrecedence(*tok_it);
+        int nextPrec = Parser::tokPrecedence(*tok_it);
         if (tokPrec < nextPrec) {
             rhs = ParseBinOpRHS(tokPrec + 1, std::move(rhs), tok_it);
             if (!rhs) {
@@ -352,7 +362,7 @@ static std::unique_ptr<Module>        TheModule;
 static std::unique_ptr<IRBuilder<>>   Builder;
 static std::map<std::string, Value *> NamedValues;
 
-Value *LogErrorV(const std::string& str) {
+Value *LogErrorV(const std::string &str) {
     std::cout << "Error: " << str << std::endl;
     return nullptr;
 }
@@ -396,9 +406,8 @@ Value *CallExprAST::codegen() {
 
     // If argument mismatch error.
     if (CalleeF->arg_size() != Args.size()) {
-        return LogErrorV(
-            fmt::format("Incorrect # arguments passed {0} vs {1}",
-                        CalleeF->arg_size(), Args.size()));
+        return LogErrorV(fmt::format("Incorrect # arguments passed {0} vs {1}", CalleeF->arg_size(),
+                                     Args.size()));
     }
 
     std::vector<Value *> ArgsV;
@@ -539,13 +548,6 @@ static void processTokens(std::vector<pol::Token> tokens) {
 //===----------------------------------------------------------------------===//
 
 int main() {
-    // Install standard binary operators.
-    // 1 is lowest precedence.
-    BinopPrecedence['<'] = 10;
-    BinopPrecedence['+'] = 20;
-    BinopPrecedence['-'] = 20;
-    BinopPrecedence['*'] = 40;  // highest.
-
     std::vector<pol::Token> tokens;
     pol::Lexer::lex("../wow.txt", tokens);
 
