@@ -1,14 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(pom)
 
-macro(conflake_source_groups target)
-    get_target_property(sources ${target} SOURCES)
-    source_group("" FILES ${sources})
-endmacro()
-
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_define_targets()
-
 find_package(LLVM REQUIRED CONFIG)
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")

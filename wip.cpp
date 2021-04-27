@@ -1,3 +1,9 @@
+
+#include "wip.h"
+
+#define CATCH_CONFIG_FAST_COMPILE
+
+#include <catch2/catch.hpp>
 #include <fmt/format.h>
 #include <pom_lexer.h>
 
@@ -547,7 +553,7 @@ static void processTokens(std::vector<pom::Token> tokens) {
 // Main driver code.
 //===----------------------------------------------------------------------===//
 
-int main() {
+void testStuff() {
     std::vector<pom::Token> tokens;
     pom::Lexer::lex("../wow.txt", tokens);
 
@@ -564,5 +570,5 @@ int main() {
     // Print out all of the generated code.
     TheModule->print(errs(), nullptr);
 
-    return 0;
+    REQUIRE(3 == 4-1);
 }
