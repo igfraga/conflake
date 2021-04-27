@@ -3,7 +3,7 @@
 #include <variant>
 #include <vector>
 
-namespace pol {
+namespace pom {
 
 enum class Keyword {
     k_def    = 1,
@@ -29,7 +29,7 @@ struct Number {
 using Token = std::variant<Keyword, Operator, Comment, Eof, Identifier, Number>;
 
 inline bool isOp(const Token& tok, char op) {
-    return std::holds_alternative<pol::Operator>(tok) && std::get<pol::Operator>(tok).m_op == op;
+    return std::holds_alternative<pom::Operator>(tok) && std::get<pom::Operator>(tok).m_op == op;
 }
 
 inline bool isOpenParen(const Token& tok) {

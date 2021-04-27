@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-namespace ast {
+namespace pom {
 
 using EntryId = int64_t;
 
@@ -12,4 +12,4 @@ struct Entry {
     std::vector<EntryId> mInputs;
 };
 
-}  // namespace ast
+}  // namespace pom

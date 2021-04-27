@@ -1,6 +1,6 @@
 
 
-namespace ast {
+namespace pom {
 
 class Node {
 public:

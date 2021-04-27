@@ -1,6 +1,6 @@
 
 #include <fmt/format.h>
-#include <pol_lexer.h>
+#include <pom_lexer.h>
 
 #include <algorithm>
 #include <fstream>
@@ -11,7 +11,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace pol {
+namespace pom {
 
 inline Token nexttok(std::istream& ist, char& lastChar) {
     auto nextch = [&ist]() -> char { return char(ist.get()); };

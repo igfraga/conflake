@@ -1,8 +1,8 @@
 
 #include <map>
-#include <ast_entry.h>
+#include <pom_entry.h>
 
-namespace ast {
+namespace pom {
 
 struct Model {
     std::map<EntryId, Entry> mEntries;

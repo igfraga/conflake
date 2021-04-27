@@ -1,5 +1,5 @@
 #include <fmt/format.h>
-#include <pol_lexer.h>
+#include <pom_lexer.h>
 
 #include <algorithm>
 #include <cctype>
@@ -24,7 +24,7 @@
 
 using namespace llvm;
 
-using TokIt = std::vector<pol::Token>::iterator;
+using TokIt = std::vector<pom::Token>::iterator;
 
 //===----------------------------------------------------------------------===//
 // Abstract Syntax Tree (aka Parse Tree)
@@ -119,7 +119,7 @@ class FunctionAST {
 
 class Parser {
    public:
-    static int tokPrecedence(const pol::Token &tok) {
+    static int tokPrecedence(const pom::Token &tok) {
         static std::map<char, int> binopPrecedence;
         if (binopPrecedence.empty()) {
             // Install standard binary operators.
@@ -129,7 +129,7 @@ class Parser {
             binopPrecedence['-'] = 20;
             binopPrecedence['*'] = 40;  // highest.
         }
-        auto op = std::get_if<pol::Operator>(&tok);
+        auto op = std::get_if<pom::Operator>(&tok);
         if (!op) {
             return -1;
         }
@@ -162,11 +162,11 @@ static std::unique_ptr<ExprAST> ParseParenExpr(TokIt &tok_it) {
     auto v = ParseExpression(tok_it);
     if (!v) {
         return nullptr;
-        std::vector<pol::Token> tokens;
-        pol::Lexer::lex("./wow.txt", tokens);
+        std::vector<pom::Token> tokens;
+        pom::Lexer::lex("./wow.txt", tokens);
     }
 
-    if (!pol::isCloseParen(*tok_it)) {
+    if (!pom::isCloseParen(*tok_it)) {
         return LogError("expected ')'");
     }
     ++tok_it;  // eat ).
@@ -179,19 +179,19 @@ static std::unique_ptr<ExprAST> ParseParenExpr(TokIt &tok_it) {
 static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
     std::vector<std::unique_ptr<ExprAST>> args;
 
-    auto ident = std::get_if<pol::Identifier>(&(*tok_it));
+    auto ident = std::get_if<pom::Identifier>(&(*tok_it));
     if (!ident) {
         return LogError("expected identifier");
     }
     ++tok_it;
 
-    if (!pol::isOpenParen(*tok_it)) {  // Simple variable ref.
+    if (!pom::isOpenParen(*tok_it)) {  // Simple variable ref.
         return std::make_unique<VariableExprAST>(ident->m_name);
     }
 
     // Call.
     ++tok_it;  // eat (
-    if (!pol::isCloseParen(*tok_it)) {
+    if (!pom::isCloseParen(*tok_it)) {
         while (true) {
             if (auto arg = ParseExpression(tok_it)) {
                 args.push_back(std::move(arg));
@@ -199,11 +199,11 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
                 return nullptr;
             }
 
-            if (pol::isCloseParen(*tok_it)) {
+            if (pom::isCloseParen(*tok_it)) {
                 break;
             }
 
-            if (!pol::isOp(*tok_it, ',')) {
+            if (!pom::isOp(*tok_it, ',')) {
                 return LogError("Expected ')' or ',' in argument list");
             }
             ++tok_it;
@@ -221,17 +221,17 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(TokIt &tok_it) {
 ///   ::= numberexpr
 ///   ::= parenexpr
 static std::unique_ptr<ExprAST> ParsePrimary(TokIt &tok_it) {
-    if (pol::isOpenParen(*tok_it)) {
+    if (pom::isOpenParen(*tok_it)) {
         return ParseParenExpr(tok_it);
-    } else if (std::holds_alternative<pol::Identifier>(*tok_it)) {
+    } else if (std::holds_alternative<pom::Identifier>(*tok_it)) {
         return ParseIdentifierExpr(tok_it);
-    } else if (std::holds_alternative<pol::Number>(*tok_it)) {
-        auto expr = std::make_unique<NumberExprAST>(std::get<pol::Number>(*tok_it).m_value);
+    } else if (std::holds_alternative<pom::Number>(*tok_it)) {
+        auto expr = std::make_unique<NumberExprAST>(std::get<pom::Number>(*tok_it).m_value);
         ++tok_it;
         return expr;
     }
     return LogError(fmt::format("unknown token when expecting an expression: {0}",
-                                pol::Lexer::toString(*tok_it)));
+                                pom::Lexer::toString(*tok_it)));
 }
 
 /// binoprhs
@@ -249,7 +249,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int exprPrec, std::unique_ptr<Expr
         }
 
         // Okay, we know this is a binop.
-        auto op = std::get_if<pol::Operator>(&(*tok_it));
+        auto op = std::get_if<pom::Operator>(&(*tok_it));
         if (!op) {
             return LogError("expected binop");
         }
@@ -291,32 +291,32 @@ static std::unique_ptr<ExprAST> ParseExpression(TokIt &tok_it) {
 /// prototype
 ///   ::= id '(' id* ')'
 static std::unique_ptr<PrototypeAST> ParsePrototype(TokIt &tok_it) {
-    if (!std::holds_alternative<pol::Identifier>(*tok_it)) {
+    if (!std::holds_alternative<pom::Identifier>(*tok_it)) {
         return LogErrorP("Expected function name in prototype");
     }
 
-    std::string fn_name = std::get<pol::Identifier>(*tok_it).m_name;
+    std::string fn_name = std::get<pom::Identifier>(*tok_it).m_name;
     ++tok_it;
 
-    if (!pol::isOpenParen(*tok_it)) {
+    if (!pom::isOpenParen(*tok_it)) {
         return LogErrorP("Expected '(' in prototype");
     }
     ++tok_it;
 
     std::vector<std::string> args;
     while (1) {
-        auto ident = std::get_if<pol::Identifier>(&(*tok_it));
+        auto ident = std::get_if<pom::Identifier>(&(*tok_it));
         if (ident) {
             args.push_back(ident->m_name);
             ++tok_it;
-        } else if (std::holds_alternative<pol::Eof>(*tok_it)) {
+        } else if (std::holds_alternative<pom::Eof>(*tok_it)) {
             return nullptr;
-        } else if (pol::isCloseParen(*tok_it)) {
+        } else if (pom::isCloseParen(*tok_it)) {
             ++tok_it;
             break;
         } else {
             return LogErrorP(
-                fmt::format("Unexpected token in prototype: {0}", pol::Lexer::toString(*tok_it)));
+                fmt::format("Unexpected token in prototype: {0}", pom::Lexer::toString(*tok_it)));
         }
     }
 
@@ -522,19 +522,19 @@ static void HandleTopLevelExpression(TokIt &tok_it) {
 }
 
 /// top ::= definition | external | expression | ';'
-static void processTokens(std::vector<pol::Token> tokens) {
+static void processTokens(std::vector<pom::Token> tokens) {
     TokIt tok_it = tokens.begin();
     while (tok_it != tokens.end()) {
-        if (std::holds_alternative<pol::Eof>(*tok_it)) {
+        if (std::holds_alternative<pom::Eof>(*tok_it)) {
             return;
-        } else if (std::holds_alternative<pol::Keyword>(*tok_it)) {
-            auto kw = std::get<pol::Keyword>(*tok_it);
-            if (kw == pol::Keyword::k_def) {
+        } else if (std::holds_alternative<pom::Keyword>(*tok_it)) {
+            auto kw = std::get<pom::Keyword>(*tok_it);
+            if (kw == pom::Keyword::k_def) {
                 HandleDefinition(tok_it);
-            } else if (kw == pol::Keyword::k_extern) {
+            } else if (kw == pom::Keyword::k_extern) {
                 HandleExtern(tok_it);
             }
-        } else if (pol::isOp(*tok_it, ';')) {
+        } else if (pom::isOp(*tok_it, ';')) {
             ++tok_it;
             continue;
         } else {
@@ -548,10 +548,10 @@ static void processTokens(std::vector<pol::Token> tokens) {
 //===----------------------------------------------------------------------===//
 
 int main() {
-    std::vector<pol::Token> tokens;
-    pol::Lexer::lex("../wow.txt", tokens);
+    std::vector<pom::Token> tokens;
+    pom::Lexer::lex("../wow.txt", tokens);
 
-    pol::Lexer::print(std::cout, tokens);
+    pom::Lexer::print(std::cout, tokens);
 
     std::cout << "--------------" << std::endl;
 
