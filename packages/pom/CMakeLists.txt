@@ -6,15 +6,15 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 add_library(pom STATIC
-    pom_ast.cpp
-    pom_ast.h
     pom_entry.cpp
     pom_entry.h
+    pom_lexer.cpp
+    pom_lexer.h
     pom_model.h
     pom_node.cpp
     pom_node.h
-    pom_lexer.cpp
-    pom_lexer.h
+    pom_parser.cpp
+    pom_parser.h
 )
 
 conflake_source_groups(pom)

@@ -13,6 +13,8 @@
 
 namespace pom {
 
+namespace lexer {
+
 inline Token nexttok(std::istream& ist, char& lastChar) {
     auto nextch = [&ist]() -> char { return char(ist.get()); };
 
@@ -128,4 +130,6 @@ void Lexer::print(std::ostream& ost, const std::vector<Token>& tokens) {
     ost << fmt::to_string(buff);
 }
 
-}  // namespace pol
+}  // namespace lexer
+
+}  // namespace pom

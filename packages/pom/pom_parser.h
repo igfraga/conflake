@@ -48,16 +48,16 @@ struct Function {
     std::unique_ptr<Expr>      m_code;
 };
 
+}  // namespace ast
+
 class Parser {
    public:
-    using TopLevelUnit = std::variant<pom::ast::Signature, pom::ast::Function>;
+    using TopLevelUnit = std::variant<ast::Signature, ast::Function>;
     using TopLevel     = std::vector<TopLevelUnit>;
 
-    static TopLevel parse(const std::vector<pom::Token> &tokens);
+    static TopLevel parse(const std::vector<lexer::Token> &tokens);
 
     static void print(std::ostream& ost, const TopLevel& top_level);
 };
-
-}  // namespace ast
 
 }  // namespace pom

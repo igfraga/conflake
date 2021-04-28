@@ -7,6 +7,8 @@
 
 namespace pom {
 
+namespace lexer {
+
 enum class Keyword {
     k_def    = 1,
     k_extern = 2,
@@ -31,16 +33,12 @@ struct Number {
 using Token = std::variant<Keyword, Operator, Comment, Eof, Identifier, Number>;
 
 inline bool isOp(const Token& tok, char op) {
-    return std::holds_alternative<pom::Operator>(tok) && std::get<pom::Operator>(tok).m_op == op;
+    return std::holds_alternative<Operator>(tok) && std::get<Operator>(tok).m_op == op;
 }
 
-inline bool isOpenParen(const Token& tok) {
-    return isOp(tok, '(');
-}
+inline bool isOpenParen(const Token& tok) { return isOp(tok, '('); }
 
-inline bool isCloseParen(const Token& tok) {
-    return isOp(tok, ')');
-}
+inline bool isCloseParen(const Token& tok) { return isOp(tok, ')'); }
 
 struct Lexer {
     static int lex(const std::filesystem::path& path, std::vector<Token>& tokens);
@@ -50,4 +48,6 @@ struct Lexer {
     static std::string toString(const Token& token);
 };
 
-}  // namespace pol
+}  // namespace lexer
+
+}  // namespace pom

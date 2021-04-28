@@ -4,7 +4,7 @@
 #define CATCH_CONFIG_FAST_COMPILE
 
 #include <fmt/format.h>
-#include <pom_ast.h>
+#include <pom_parser.h>
 #include <pom_lexer.h>
 
 #include <algorithm>
@@ -185,14 +185,14 @@ void testStuff() {
 
     auto path = expaths[3];
     {
-        std::vector<pom::Token> tokens;
-        pom::Lexer::lex(path, tokens);
-        pom::Lexer::print(std::cout, tokens);
+        std::vector<pom::lexer::Token> tokens;
+        pom::lexer::Lexer::lex(path, tokens);
+        pom::lexer::Lexer::print(std::cout, tokens);
 
         std::cout << "--------------" << std::endl;
 
-        auto top_level = pom::ast::Parser::parse(tokens);
-        pom::ast::Parser::print(std::cout, top_level);
+        auto top_level = pom::Parser::parse(tokens);
+        pom::Parser::print(std::cout, top_level);
 
         std::cout << "--------------" << std::endl;
 
