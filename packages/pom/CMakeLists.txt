@@ -6,6 +6,8 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 add_library(pom STATIC
+    pom_ast.cpp
+    pom_ast.h
     pom_entry.cpp
     pom_entry.h
     pom_model.h
