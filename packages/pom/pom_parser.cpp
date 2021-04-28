@@ -1,7 +1,7 @@
 
-#include <fmt/format.h>
 #include <pom_parser.h>
 
+#include <fmt/format.h>
 #include <iostream>
 #include <map>
 
@@ -11,9 +11,9 @@ namespace {
 
 using TokIt = std::vector<lexer::Token>::const_iterator;
 
-void fmtExpr(fmt::memory_buffer &buff, const ast::Expr &e) {
+void fmtExpr(fmt::memory_buffer& buff, const ast::Expr& e) {
     std::visit(
-        [&](auto &&v) {
+        [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Number>) {
                 fmt::format_to(buff, "d{0}", v.m_val);
@@ -27,7 +27,7 @@ void fmtExpr(fmt::memory_buffer &buff, const ast::Expr &e) {
                 fmt::format_to(buff, ")");
             } else if constexpr (std::is_same_v<T, ast::Call>) {
                 fmt::format_to(buff, "[call {0} <- ", v.m_function);
-                for (auto &a : v.m_args) {
+                for (auto& a : v.m_args) {
                     fmtExpr(buff, *a);
                     fmt::format_to(buff, ", ");
                 }
@@ -37,9 +37,9 @@ void fmtExpr(fmt::memory_buffer &buff, const ast::Expr &e) {
         e);
 }
 
-void fmtTlu(fmt::memory_buffer &buff, const Parser::TopLevelUnit &u) {
+void fmtTlu(fmt::memory_buffer& buff, const Parser::TopLevelUnit& u) {
     std::visit(
-        [&](auto &&v) {
+        [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Signature>) {
                 fmt::format_to(buff, "extern: {0} <- {1}\n", v.m_name,
@@ -54,7 +54,7 @@ void fmtTlu(fmt::memory_buffer &buff, const Parser::TopLevelUnit &u) {
         u);
 }
 
-static int tokPrecedence(const lexer::Token &tok) {
+static int tokPrecedence(const lexer::Token& tok) {
     static std::map<char, int> binopPrecedence;
     if (binopPrecedence.empty()) {
         // Install standard binary operators.
@@ -76,20 +76,20 @@ static int tokPrecedence(const lexer::Token &tok) {
 }
 
 /// LogError* - These are little helper functions for error handling.
-std::unique_ptr<ast::Expr> LogError(const std::string &str) {
+std::unique_ptr<ast::Expr> LogError(const std::string& str) {
     std::cout << "Error: " << str << std::endl;
     return nullptr;
 }
 
-std::unique_ptr<ast::Signature> LogErrorP(const std::string &str) {
+std::unique_ptr<ast::Signature> LogErrorP(const std::string& str) {
     std::cout << "Error: " << str << std::endl;
     return nullptr;
 }
 
-static std::unique_ptr<ast::Expr> ParseExpression(TokIt &tok_it);
+static std::unique_ptr<ast::Expr> ParseExpression(TokIt& tok_it);
 
 /// parenexpr ::= '(' expression ')'
-static std::unique_ptr<ast::Expr> ParseParenExpr(TokIt &tok_it) {
+static std::unique_ptr<ast::Expr> ParseParenExpr(TokIt& tok_it) {
     ++tok_it;  // eat (.
     auto v = ParseExpression(tok_it);
     if (!v) {
@@ -106,7 +106,7 @@ static std::unique_ptr<ast::Expr> ParseParenExpr(TokIt &tok_it) {
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
-static std::unique_ptr<ast::Expr> ParseIdentifierExpr(TokIt &tok_it) {
+static std::unique_ptr<ast::Expr> ParseIdentifierExpr(TokIt& tok_it) {
     std::vector<std::unique_ptr<ast::Expr>> args;
 
     auto ident = std::get_if<lexer::Identifier>(&(*tok_it));
@@ -150,7 +150,7 @@ static std::unique_ptr<ast::Expr> ParseIdentifierExpr(TokIt &tok_it) {
 ///   ::= identifierexpr
 ///   ::= numberexpr
 ///   ::= parenexpr
-static std::unique_ptr<ast::Expr> ParsePrimary(TokIt &tok_it) {
+static std::unique_ptr<ast::Expr> ParsePrimary(TokIt& tok_it) {
     if (isOpenParen(*tok_it)) {
         return ParseParenExpr(tok_it);
     } else if (std::holds_alternative<lexer::Identifier>(*tok_it)) {
@@ -166,9 +166,8 @@ static std::unique_ptr<ast::Expr> ParsePrimary(TokIt &tok_it) {
 
 /// binoprhs
 ///   ::= ('+' primary)*
-static std::unique_ptr<ast::Expr> ParseBinOpRHS(int                             exprPrec,
-                                                     std::unique_ptr<ast::Expr> lhs,
-                                                     TokIt &                         tok_it) {
+static std::unique_ptr<ast::Expr> ParseBinOpRHS(int exprPrec, std::unique_ptr<ast::Expr> lhs,
+                                                TokIt& tok_it) {
     // If this is a binop, find its precedence.
     while (true) {
         int tokPrec = tokPrecedence(*tok_it);
@@ -203,15 +202,15 @@ static std::unique_ptr<ast::Expr> ParseBinOpRHS(int                             
         }
 
         // Merge LHS/RHS.
-        lhs = std::make_unique<ast::Expr>(
-            ast::BinaryExpr{op->m_op, std::move(lhs), std::move(rhs)});
+        lhs =
+            std::make_unique<ast::Expr>(ast::BinaryExpr{op->m_op, std::move(lhs), std::move(rhs)});
     }
 }
 
 /// expression
 ///   ::= primary binoprhs
 ///
-static std::unique_ptr<ast::Expr> ParseExpression(TokIt &tok_it) {
+static std::unique_ptr<ast::Expr> ParseExpression(TokIt& tok_it) {
     auto lhs = ParsePrimary(tok_it);
     if (!lhs) {
         return nullptr;
@@ -222,7 +221,7 @@ static std::unique_ptr<ast::Expr> ParseExpression(TokIt &tok_it) {
 
 /// prototype
 ///   ::= id '(' id* ')'
-static std::unique_ptr<ast::Signature> ParsePrototype(TokIt &tok_it) {
+static std::unique_ptr<ast::Signature> ParsePrototype(TokIt& tok_it) {
     if (!std::holds_alternative<lexer::Identifier>(*tok_it)) {
         return LogErrorP("Expected function name in prototype");
     }
@@ -256,7 +255,7 @@ static std::unique_ptr<ast::Signature> ParsePrototype(TokIt &tok_it) {
 }
 
 /// definition ::= 'def' prototype expression
-static std::unique_ptr<ast::Function> ParseDefinition(TokIt &tok_it) {
+static std::unique_ptr<ast::Function> ParseDefinition(TokIt& tok_it) {
     ++tok_it;  // eat def.
     auto Proto = ParsePrototype(tok_it);
     if (!Proto) {
@@ -264,32 +263,30 @@ static std::unique_ptr<ast::Function> ParseDefinition(TokIt &tok_it) {
     }
 
     if (auto E = ParseExpression(tok_it)) {
-        return std::make_unique<ast::Function>(
-            ast::Function{std::move(Proto), std::move(E)});
+        return std::make_unique<ast::Function>(ast::Function{std::move(Proto), std::move(E)});
     }
     return nullptr;
 }
 
 /// toplevelexpr ::= expression
-static std::unique_ptr<ast::Function> ParseTopLevelExpr(TokIt &tok_it) {
+static std::unique_ptr<ast::Function> ParseTopLevelExpr(TokIt& tok_it) {
     if (auto E = ParseExpression(tok_it)) {
         // Make an anonymous proto.
         auto sig = std::make_unique<ast::Signature>(ast::Signature{"__anon_expr", {}});
-        return std::make_unique<ast::Function>(
-            ast::Function{std::move(sig), std::move(E)});
+        return std::make_unique<ast::Function>(ast::Function{std::move(sig), std::move(E)});
     }
     return nullptr;
 }
 
 /// external ::= 'extern' prototype
-static std::unique_ptr<ast::Signature> ParseExtern(TokIt &tok_it) {
+static std::unique_ptr<ast::Signature> ParseExtern(TokIt& tok_it) {
     ++tok_it;  // eat extern.
     return ParsePrototype(tok_it);
 }
 }  // namespace
 
 /// top ::= definition | external | expression | ';'
-Parser::TopLevel Parser::parse(const std::vector<lexer::Token> &tokens) {
+Parser::TopLevel Parser::parse(const std::vector<lexer::Token>& tokens) {
     TopLevel top_level;
     auto     tok_it = tokens.begin();
     while (tok_it != tokens.end()) {
@@ -315,9 +312,9 @@ Parser::TopLevel Parser::parse(const std::vector<lexer::Token> &tokens) {
     return top_level;
 }
 
-void Parser::print(std::ostream &ost, const TopLevel &top_level) {
+void Parser::print(std::ostream& ost, const TopLevel& top_level) {
     fmt::memory_buffer buff;
-    for (auto &e : top_level) {
+    for (auto& e : top_level) {
         fmtTlu(buff, e);
     }
     ost << fmt::to_string(buff);

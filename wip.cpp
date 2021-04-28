@@ -5,9 +5,10 @@
 #include <catch2/catch.hpp>
 
 #include <fmt/format.h>
-#include <pom_parser.h>
-#include <pom_lexer.h>
+
 #include <pom_codegen.h>
+#include <pom_lexer.h>
+#include <pom_parser.h>
 
 #include <iostream>
 
@@ -19,8 +20,7 @@ void testStuff() {
         "../examples/test4.txt",
     };
 
-    for (auto &path : expaths)
-    {
+    for (auto& path : expaths) {
         std::vector<pom::lexer::Token> tokens;
         pom::lexer::Lexer::lex(path, tokens);
         pom::lexer::Lexer::print(std::cout, tokens);

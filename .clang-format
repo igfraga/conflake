@@ -6,3 +6,6 @@ Language: Cpp
 
 AlignConsecutiveAssignments: true
 AlignConsecutiveDeclarations: true
+DerivePointerAlignment: false
+IncludeBlocks: Preserve
+PointerAlignment: Left

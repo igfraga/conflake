@@ -1,7 +1,7 @@
 
-#include <fmt/format.h>
 #include <pom_lexer.h>
 
+#include <fmt/format.h>
 #include <algorithm>
 #include <fstream>
 #include <iostream>
