@@ -20,6 +20,8 @@ using namespace llvm;
 
 namespace pom {
 
+namespace codegen {
+
 struct Program {
     Program() {
         // Open a new context and module.
@@ -36,105 +38,104 @@ struct Program {
     std::map<std::string, Value*> m_named_values;
 };
 
-Value* LogErrorV(const std::string& str) {
-    std::cout << "Error: " << str << std::endl;
-    return nullptr;
-}
+tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Expr& v);
 
-Value* codegen(Program& program, const pom::ast::Expr& v);
-
-Value* codegen(Program& program, const pom::ast::Number& v) {
+tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Number& v) {
     return ConstantFP::get(*program.m_context, APFloat(v.m_val));
 }
 
-Value* codegen(Program& program, const pom::ast::Var& var) {
+tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Var& var) {
     // Look this variable up in the function.
     Value* v = program.m_named_values[var.m_name];
     if (!v) {
-        return LogErrorV("Unknown variable name");
+        return tl::make_unexpected(Err{"Unknown variable name"});
     }
     return v;
 }
 
-Value* codegen(Program& program, const pom::ast::BinaryExpr& e) {
-    Value* lv = codegen(program, *e.m_lhs);
-    Value* lr = codegen(program, *e.m_rhs);
-    if (!lv || !lr) {
-        return nullptr;
+tl::expected<Value*, Err> codegen(Program& program, const pom::ast::BinaryExpr& e) {
+    auto lv = codegen(program, *e.m_lhs);
+    if (!lv) {
+        return lv;
+    }
+    auto lr = codegen(program, *e.m_rhs);
+    if (!lr) {
+        return lr;
     }
 
     switch (e.m_op) {
         case '+':
-            return program.m_builder->CreateFAdd(lv, lr, "addtmp");
+            return program.m_builder->CreateFAdd(*lv, *lr, "addtmp");
         case '-':
-            return program.m_builder->CreateFSub(lv, lr, "subtmp");
+            return program.m_builder->CreateFSub(*lv, *lr, "subtmp");
         case '*':
-            return program.m_builder->CreateFMul(lv, lr, "multmp");
+            return program.m_builder->CreateFMul(*lv, *lr, "multmp");
         case '<':
-            lv = program.m_builder->CreateFCmpULT(lv, lr, "cmptmp");
+            lv = program.m_builder->CreateFCmpULT(*lv, *lr, "cmptmp");
             // Convert bool 0/1 to double 0.0 or 1.0
-            return program.m_builder->CreateUIToFP(lv, Type::getDoubleTy(*program.m_context),
+            return program.m_builder->CreateUIToFP(*lv, Type::getDoubleTy(*program.m_context),
                                                    "booltmp");
         default:
-            return LogErrorV("invalid binary operator");
+            return tl::make_unexpected(Err{"invalid binary operator"});
     }
 }
 
-Value* codegen(Program& program, const pom::ast::Call& c) {
+tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Call& c) {
     // Look up the name in the global module table.
     Function* function = program.m_module->getFunction(c.m_function);
     if (!function) {
-        return LogErrorV("Unknown function referenced");
+        return tl::make_unexpected(Err{"Unknown function referenced"});
     }
 
     if (function->arg_size() != c.m_args.size()) {
-        return LogErrorV(fmt::format("Incorrect # arguments passed {0} vs {1}",
-                                     function->arg_size(), c.m_args.size()));
+        return tl::make_unexpected(Err{fmt::format("Incorrect # arguments passed {0} vs {1}",
+                                                   function->arg_size(), c.m_args.size())});
     }
 
     std::vector<Value*> args;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
-        args.push_back(codegen(program, *c.m_args[i]));
-        if (!args.back()) {
-            return nullptr;
+        auto aa = codegen(program, *c.m_args[i]);
+        if(!aa) {
+            return aa;
         }
+        args.push_back(*aa);
     }
 
     return program.m_builder->CreateCall(function, args, "calltmp");
 }
 
-Value* codegen(Program& program, const pom::ast::Expr& v) {
-    return std::visit([&program](auto&& w) -> Value* { return codegen(program, w); }, v);
+tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Expr& v) {
+    return std::visit([&program](auto&& w) { return codegen(program, w); }, v);
 }
 
-Function* codegen(Program& program, const pom::ast::Signature& s) {
+tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Signature& s) {
     // Make the function type:  double(double,double) etc.
     std::vector<Type*> doubles(s.m_arg_names.size(), Type::getDoubleTy(*program.m_context));
     FunctionType*      func_type =
         FunctionType::get(Type::getDoubleTy(*program.m_context), doubles, false);
 
-    Function* F =
+    Function* f =
         Function::Create(func_type, Function::ExternalLinkage, s.m_name, program.m_module.get());
 
     // Set names for all arguments.
     unsigned idx = 0;
-    for (auto& arg : F->args()) {
+    for (auto& arg : f->args()) {
         arg.setName(s.m_arg_names[idx++]);
     }
 
-    return F;
+    return f;
 }
 
-Function* codegen(Program& program, const pom::ast::Function& f) {
+tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Function& f) {
     // First, check for an existing function from a previous 'extern' declaration.
     Function* function = program.m_module->getFunction(f.m_sig->m_name);
 
     if (!function) {
-        function = codegen(program, *f.m_sig);
-    }
-
-    if (!function) {
-        return nullptr;
+        auto funcorerr = codegen(program, *f.m_sig);
+        if (!funcorerr) {
+            return tl::make_unexpected(funcorerr.error());
+        }
+        function = *funcorerr;
     }
 
     // Create a new basic block to start insertion into.
@@ -146,29 +147,30 @@ Function* codegen(Program& program, const pom::ast::Function& f) {
     for (auto& arg : function->args()) {
         program.m_named_values[std::string(arg.getName())] = &arg;
     }
-
-    if (Value* retVal = codegen(program, *f.m_code)) {
-        // Finish off the function.
-        program.m_builder->CreateRet(retVal);
-
-        // Validate the generated code, checking for consistency.
-        verifyFunction(*function);
-
-        return function;
+    auto retVal = codegen(program, *f.m_code);
+    if (!retVal) {
+        function->eraseFromParent();
+        return tl::make_unexpected(retVal.error());
     }
+    // Finish off the function.
+    program.m_builder->CreateRet(*retVal);
 
-    // Error reading body, remove function.
-    function->eraseFromParent();
-    return nullptr;
+    // Validate the generated code, checking for consistency.
+    verifyFunction(*function);
+
+    return function;
 }
 
-void codegen(const pom::Parser::TopLevel& top_level) {
+tl::expected<int, Err> codegen(const pom::Parser::TopLevel& top_level) {
     Program program;
 
     for (auto& tpu : top_level) {
         std::visit([&program](auto&& v) { codegen(program, v); }, tpu);
     }
     program.m_module->print(errs(), nullptr);
+    return 0;
 }
+
+}  // namespace codegen
 
 }  // namespace pom

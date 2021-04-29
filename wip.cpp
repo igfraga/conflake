@@ -33,7 +33,7 @@ void testStuff() {
 
         std::cout << "--------------" << std::endl;
 
-        pom::codegen(*top_level);
+        REQUIRE(pom::codegen::codegen(*top_level));
 
         REQUIRE(3 == 4 - 1);
 
