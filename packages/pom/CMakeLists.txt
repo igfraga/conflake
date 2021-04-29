@@ -24,7 +24,7 @@ conflake_source_groups(pom)
 target_include_directories(pom PUBLIC .)
 target_compile_options(pom PRIVATE -Wall)
 
-target_link_libraries(pom PUBLIC CONAN_PKG::fmt)
+target_link_libraries(pom PUBLIC CONAN_PKG::fmt tl::expected)
 
 target_compile_definitions(pom PUBLIC ${LLVM_DEFINITIONS})
 target_include_directories(pom PUBLIC ${LLVM_INCLUDE_DIRS})

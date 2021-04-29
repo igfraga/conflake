@@ -28,11 +28,12 @@ void testStuff() {
         std::cout << "--------------" << std::endl;
 
         auto top_level = pom::Parser::parse(tokens);
-        pom::Parser::print(std::cout, top_level);
+        REQUIRE(top_level);
+        pom::Parser::print(std::cout, *top_level);
 
         std::cout << "--------------" << std::endl;
 
-        pom::codegen(top_level);
+        pom::codegen(*top_level);
 
         REQUIRE(3 == 4 - 1);
 

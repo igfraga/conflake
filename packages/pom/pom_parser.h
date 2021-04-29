@@ -7,6 +7,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <tl/expected.hpp>
 
 namespace pom {
 
@@ -18,6 +19,7 @@ struct BinaryExpr;
 struct Call;
 
 using Expr = std::variant<Number, Var, BinaryExpr, Call>;
+using ExprP = std::unique_ptr<Expr>;
 
 struct Number {
     double m_val;
@@ -52,10 +54,11 @@ struct Function {
 
 class Parser {
    public:
+    struct Err{ std::string m_desc; };
     using TopLevelUnit = std::variant<ast::Signature, ast::Function>;
     using TopLevel     = std::vector<TopLevelUnit>;
 
-    static TopLevel parse(const std::vector<lexer::Token> &tokens);
+    static tl::expected<TopLevel, Err> parse(const std::vector<lexer::Token> &tokens);
 
     static void print(std::ostream& ost, const TopLevel& top_level);
 };

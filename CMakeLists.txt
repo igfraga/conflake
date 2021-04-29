@@ -9,6 +9,8 @@ endmacro()
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_define_targets()
 
+add_subdirectory(thirdparty)
+
 add_subdirectory(packages/pom pom)
 
 add_executable(conflake test.cpp wip.cpp wip.h)
