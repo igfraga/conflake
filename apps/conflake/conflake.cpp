@@ -3,34 +3,33 @@
 
 #include <pom_codegen.h>
 #include <pom_lexer.h>
-#include <pom_parser.h>
 #include <pom_llvm.h>
+#include <pom_parser.h>
 
 #include <iostream>
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
 
-#include <CLI/CLI.hpp>
+#include <argparse.hpp>
 
 int main(int argc, char** argv) {
 
-    CLI::App app{"App description"};
+    argparse::ArgumentParser app{"App description"};
 
-    std::string filename = "default";
-    app.add_option("-f,--file", filename, "A help string")->required();
+    app.add_argument("-f", "--file");
 
     try {
-        app.parse(argc, argv);
-    } catch (const CLI::ParseError &e) {
-        return app.exit(e);
+        app.parse_args(argc, argv);
+    } catch (const std::runtime_error& err) {
+        std::cout << err.what() << std::endl;
+        std::cout << app;
+        return 1;
     }
 
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
-    llvm::InitializeNativeTargetAsmParser();
+    pom::initLlvm();
+
+    auto path = std::filesystem::u8path(app.get<std::string>("--file"));
 
     std::vector<pom::lexer::Token> tokens;
-    pom::lexer::Lexer::lex(std::filesystem::u8path(filename), tokens);
+    pom::lexer::Lexer::lex(path, tokens);
     pom::lexer::Lexer::print(std::cout, tokens);
 
     std::cout << "--------------" << std::endl;
@@ -41,7 +40,7 @@ int main(int argc, char** argv) {
     std::cout << "--------------" << std::endl;
 
     auto err = pom::codegen::codegen(*top_level);
-    if(!err) {
+    if (!err) {
         std::cout << "Error: " << err.error().m_desc << std::endl;
     }
 

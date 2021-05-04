@@ -3,7 +3,7 @@
 
 #include <fmt/format.h>
 
-#include <pom_llvm.h>
+#include <pom_jit.h>
 #include <iostream>
 
 #include "llvm/ADT/APFloat.h"
@@ -50,7 +50,7 @@ struct Program {
         m_fpm->add(llvm::createCFGSimplificationPass());
         m_fpm->doInitialization();
 
-        m_jit = std::make_unique<llvm::orc::KaleidoscopeJIT>();
+        m_jit = std::make_unique<Jit>();
         m_module->setDataLayout(m_jit->getTargetMachine().createDataLayout());
     }
 
@@ -59,7 +59,7 @@ struct Program {
     std::unique_ptr<IRBuilder<>>                       m_builder;
     std::map<std::string, Value*>                      m_named_values;
     std::unique_ptr<llvm::legacy::FunctionPassManager> m_fpm;
-    std::unique_ptr<llvm::orc::KaleidoscopeJIT>        m_jit;
+    std::unique_ptr<Jit>                               m_jit;
 };
 
 tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Expr& v);
@@ -196,12 +196,12 @@ tl::expected<int, Err> codegen(const pom::Parser::TopLevel& top_level) {
         if (!fn_or_err) {
             return tl::make_unexpected(fn_or_err.error());
         }
-        if((*fn_or_err)->arg_empty()) {
+        if ((*fn_or_err)->arg_empty()) {
             lastfn = (*fn_or_err)->getName().str();
         }
     }
 
-    if(lastfn.empty()) {
+    if (lastfn.empty()) {
         std::cout << "Nothing to evaluate" << std::endl;
         return 0;
     }

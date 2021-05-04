@@ -10,6 +10,8 @@ add_library(pom STATIC
     pom_codegen.h
     pom_entry.cpp
     pom_entry.h
+    pom_jit.cpp
+    pom_jit.h
     pom_lexer.cpp
     pom_lexer.h
     pom_llvm.cpp
