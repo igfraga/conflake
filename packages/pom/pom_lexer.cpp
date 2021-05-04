@@ -69,10 +69,10 @@ inline Token nexttok(std::istream& ist, char& lastChar) {
     return tok;
 }
 
-int Lexer::lex(const std::filesystem::path& path, std::vector<Token>& tokens) {
+tl::expected<void, Err> Lexer::lex(const std::filesystem::path& path, std::vector<Token>& tokens) {
     std::ifstream fs(path, std::ios_base::in);
     if (!fs.good()) {
-        return -1;
+        return tl::make_unexpected(Err{"Error opening file"});
     }
 
     char lastChar = ' ';
@@ -86,7 +86,7 @@ int Lexer::lex(const std::filesystem::path& path, std::vector<Token>& tokens) {
             break;
         }
     }
-    return 0;
+    return {};
 }
 
 void fmtTok(fmt::memory_buffer& buff, const Token& token) {
