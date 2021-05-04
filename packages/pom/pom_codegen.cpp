@@ -2,6 +2,8 @@
 #include <pom_codegen.h>
 
 #include <fmt/format.h>
+
+#include <pom_llvm.h>
 #include <iostream>
 
 #include "llvm/ADT/APFloat.h"
@@ -12,9 +14,15 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Scalar/GVN.h"
 
 using namespace llvm;
 
@@ -30,12 +38,28 @@ struct Program {
 
         // Create a new builder for the module.
         m_builder = std::make_unique<IRBuilder<>>(*m_context);
+
+        m_fpm = std::make_unique<legacy::FunctionPassManager>(m_module.get());
+        // Do simple "peephole" optimizations and bit-twiddling optzns.
+        m_fpm->add(llvm::createInstructionCombiningPass());
+        // Reassociate expressions.
+        m_fpm->add(llvm::createReassociatePass());
+        // Eliminate Common SubExpressions.
+        m_fpm->add(llvm::createGVNPass());
+        // Simplify the control flow graph (deleting unreachable blocks, etc).
+        m_fpm->add(llvm::createCFGSimplificationPass());
+        m_fpm->doInitialization();
+
+        m_jit = std::make_unique<llvm::orc::KaleidoscopeJIT>();
+        m_module->setDataLayout(m_jit->getTargetMachine().createDataLayout());
     }
 
-    std::unique_ptr<LLVMContext>  m_context;
-    std::unique_ptr<Module>       m_module;
-    std::unique_ptr<IRBuilder<>>  m_builder;
-    std::map<std::string, Value*> m_named_values;
+    std::unique_ptr<LLVMContext>                       m_context;
+    std::unique_ptr<Module>                            m_module;
+    std::unique_ptr<IRBuilder<>>                       m_builder;
+    std::map<std::string, Value*>                      m_named_values;
+    std::unique_ptr<llvm::legacy::FunctionPassManager> m_fpm;
+    std::unique_ptr<llvm::orc::KaleidoscopeJIT>        m_jit;
 };
 
 tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Expr& v);
@@ -95,7 +119,7 @@ tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Call& c) {
     std::vector<Value*> args;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
         auto aa = codegen(program, *c.m_args[i]);
-        if(!aa) {
+        if (!aa) {
             return aa;
         }
         args.push_back(*aa);
@@ -158,16 +182,43 @@ tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Function&
     // Validate the generated code, checking for consistency.
     verifyFunction(*function);
 
+    program.m_fpm->run(*function);
+
     return function;
 }
 
 tl::expected<int, Err> codegen(const pom::Parser::TopLevel& top_level) {
     Program program;
 
+    std::string lastfn;
     for (auto& tpu : top_level) {
-        std::visit([&program](auto&& v) { codegen(program, v); }, tpu);
+        auto fn_or_err = std::visit([&program](auto&& v) { return codegen(program, v); }, tpu);
+        if (!fn_or_err) {
+            return tl::make_unexpected(fn_or_err.error());
+        }
+        if((*fn_or_err)->arg_empty()) {
+            lastfn = (*fn_or_err)->getName().str();
+        }
     }
+
+    if(lastfn.empty()) {
+        std::cout << "Nothing to evaluate" << std::endl;
+        return 0;
+    }
+
     program.m_module->print(errs(), nullptr);
+
+    auto handle = program.m_jit->addModule(std::move(program.m_module));
+
+    auto symbol = program.m_jit->findSymbol(lastfn);
+    if (!symbol) {
+        return tl::make_unexpected(Err{fmt::format("Could not find symbol: {0}", lastfn)});
+    }
+    double (*fp)() = (double (*)())(uint64_t)*symbol.getAddress();
+
+    std::cout << "Evaluated: " << fp() << std::endl;
+
+    program.m_jit->removeModule(handle);
     return 0;
 }
 

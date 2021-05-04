@@ -9,15 +9,24 @@
 #include <pom_codegen.h>
 #include <pom_lexer.h>
 #include <pom_parser.h>
+#include <pom_llvm.h>
 
 #include <iostream>
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Target/TargetMachine.h"
 
 void testStuff() {
+
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+
     std::vector<std::filesystem::path> expaths = {
         "../examples/test1.txt",
         "../examples/test2.txt",
         "../examples/test3.txt",
         "../examples/test4.txt",
+        "../examples/test5.txt",
     };
 
     for (auto& path : expaths) {
@@ -33,12 +42,13 @@ void testStuff() {
 
         std::cout << "--------------" << std::endl;
 
-        REQUIRE(pom::codegen::codegen(*top_level));
+        auto err = pom::codegen::codegen(*top_level);
+        if(!err) {
+            std::cout << "Error: " << err.error().m_desc << std::endl;
+        }
 
         REQUIRE(3 == 4 - 1);
 
-        std::cout << "====================" << std::endl;
-        std::cout << "====================" << std::endl;
         std::cout << "====================" << std::endl;
     }
 }
