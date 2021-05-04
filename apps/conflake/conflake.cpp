@@ -1,9 +1,4 @@
 
-#include "wip.h"
-
-#define CATCH_CONFIG_FAST_COMPILE
-#include <catch2/catch.hpp>
-
 #include <fmt/format.h>
 
 #include <pom_codegen.h>
@@ -15,18 +10,18 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 
-void testStuff() {
+int main() {
 
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
 
     std::vector<std::filesystem::path> expaths = {
-        "../examples/test1.txt",
-        "../examples/test2.txt",
-        "../examples/test3.txt",
-        "../examples/test4.txt",
-        "../examples/test5.txt",
+        "../../examples/test1.txt",
+        "../../examples/test2.txt",
+        "../../examples/test3.txt",
+        "../../examples/test4.txt",
+        "../../examples/test5.txt",
     };
 
     for (auto& path : expaths) {
@@ -37,7 +32,6 @@ void testStuff() {
         std::cout << "--------------" << std::endl;
 
         auto top_level = pom::Parser::parse(tokens);
-        REQUIRE(top_level);
         pom::Parser::print(std::cout, *top_level);
 
         std::cout << "--------------" << std::endl;
@@ -47,8 +41,8 @@ void testStuff() {
             std::cout << "Error: " << err.error().m_desc << std::endl;
         }
 
-        REQUIRE(3 == 4 - 1);
-
         std::cout << "====================" << std::endl;
     }
+
+    return 0;
 }

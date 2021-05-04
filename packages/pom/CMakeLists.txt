@@ -52,3 +52,5 @@ target_compile_features(pom PRIVATE cxx_std_17)
 #message("llvm defs: ${LLVM_DEFINITIONS}")
 #message("llvm libs: ${llvm_libs}")
 #message("llvm includes: ${LLVM_INCLUDE_DIRS}")
+
+add_subdirectory(test)
