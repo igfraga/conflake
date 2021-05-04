@@ -10,39 +10,42 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetMachine.h"
 
-int main() {
+#include <CLI/CLI.hpp>
+
+int main(int argc, char** argv) {
+
+    CLI::App app{"App description"};
+
+    std::string filename = "default";
+    app.add_option("-f,--file", filename, "A help string")->required();
+
+    try {
+        app.parse(argc, argv);
+    } catch (const CLI::ParseError &e) {
+        return app.exit(e);
+    }
 
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
 
-    std::vector<std::filesystem::path> expaths = {
-        "../../examples/test1.txt",
-        "../../examples/test2.txt",
-        "../../examples/test3.txt",
-        "../../examples/test4.txt",
-        "../../examples/test5.txt",
-    };
+    std::vector<pom::lexer::Token> tokens;
+    pom::lexer::Lexer::lex(std::filesystem::u8path(filename), tokens);
+    pom::lexer::Lexer::print(std::cout, tokens);
 
-    for (auto& path : expaths) {
-        std::vector<pom::lexer::Token> tokens;
-        pom::lexer::Lexer::lex(path, tokens);
-        pom::lexer::Lexer::print(std::cout, tokens);
+    std::cout << "--------------" << std::endl;
 
-        std::cout << "--------------" << std::endl;
+    auto top_level = pom::Parser::parse(tokens);
+    pom::Parser::print(std::cout, *top_level);
 
-        auto top_level = pom::Parser::parse(tokens);
-        pom::Parser::print(std::cout, *top_level);
+    std::cout << "--------------" << std::endl;
 
-        std::cout << "--------------" << std::endl;
-
-        auto err = pom::codegen::codegen(*top_level);
-        if(!err) {
-            std::cout << "Error: " << err.error().m_desc << std::endl;
-        }
-
-        std::cout << "====================" << std::endl;
+    auto err = pom::codegen::codegen(*top_level);
+    if(!err) {
+        std::cout << "Error: " << err.error().m_desc << std::endl;
     }
+
+    std::cout << "====================" << std::endl;
 
     return 0;
 }
