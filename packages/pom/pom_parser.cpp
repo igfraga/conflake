@@ -16,44 +16,43 @@ namespace {
 
 using TokIt = std::vector<lexer::Token>::const_iterator;
 
-void fmtExpr(fmt::memory_buffer& buff, const ast::Expr& e) {
+void printExpr(std::ostream& ost, const ast::Expr& e) {
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Number>) {
-                fmt::format_to(buff, "d{0}", v.m_val);
+                ost << fmt::format("d{0}", v.m_val);
             } else if constexpr (std::is_same_v<T, ast::Var>) {
-                fmt::format_to(buff, "v/{0}", v.m_name);
+                ost << fmt::format("v/{0}", v.m_name);
             } else if constexpr (std::is_same_v<T, ast::BinaryExpr>) {
-                fmt::format_to(buff, "(be: {0} ", v.m_op);
-                fmtExpr(buff, *v.m_lhs);
-                fmt::format_to(buff, " ");
-                fmtExpr(buff, *v.m_rhs);
-                fmt::format_to(buff, ")");
+                ost << fmt::format("(be: {0} ", v.m_op);
+                printExpr(ost, *v.m_lhs);
+                ost << " ";
+                printExpr(ost, *v.m_rhs);
+                ost << ")";
             } else if constexpr (std::is_same_v<T, ast::Call>) {
-                fmt::format_to(buff, "[call {0} <- ", v.m_function);
+                fmt::format("[call {0} <- ", v.m_function);
                 for (auto& a : v.m_args) {
-                    fmtExpr(buff, *a);
-                    fmt::format_to(buff, ", ");
+                    printExpr(ost, *a);
+                    ost << ", ";
                 }
-                fmt::format_to(buff, "]");
+                ost << "]";
             }
         },
         e.m_val);
 }
 
-void fmtTlu(fmt::memory_buffer& buff, const TopLevelUnit& u) {
+void printTlu(std::ostream& ost, const TopLevelUnit& u) {
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Signature>) {
-                fmt::format_to(buff, "extern: {0} <- {1}\n", v.m_name,
-                               fmt::join(v.m_arg_names, ","));
+                ost << fmt::format("extern: {0} <- {1}\n", v.m_name, fmt::join(v.m_arg_names, ","));
             } else if constexpr (std::is_same_v<T, ast::Function>) {
-                fmt::format_to(buff, "func: {0} <- {1} : ", v.m_sig.m_name,
-                               fmt::join(v.m_sig.m_arg_names, ","));
-                fmtExpr(buff, *v.m_code);
-                fmt::format_to(buff, "\n");
+                ost << fmt::format("func: {0} <- {1} : ", v.m_sig.m_name,
+                                   fmt::join(v.m_sig.m_arg_names, ","));
+                printExpr(ost, *v.m_code);
+                ost << "\n";
             }
         },
         u);
@@ -316,11 +315,9 @@ expected<TopLevel> parse(const std::vector<lexer::Token>& tokens) {
 }
 
 void print(std::ostream& ost, const TopLevel& top_level) {
-    fmt::memory_buffer buff;
     for (auto& e : top_level) {
-        fmtTlu(buff, e);
+        printTlu(ost, e);
     }
-    ost << fmt::to_string(buff);
 }
 
 }  // namespace parser
