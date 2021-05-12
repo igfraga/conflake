@@ -12,7 +12,7 @@ struct Err {
     std::string m_desc;
 };
 
-tl::expected<int, Err> codegen(const pom::Parser::TopLevel& tl);
+tl::expected<int, Err> codegen(const pom::parser::TopLevel& tl);
 
 }  // namespace codegen
 

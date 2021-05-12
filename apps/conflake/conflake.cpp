@@ -34,8 +34,8 @@ int main(int argc, char** argv) {
 
     std::cout << "--------------" << std::endl;
 
-    auto top_level = pom::Parser::parse(tokens);
-    pom::Parser::print(std::cout, *top_level);
+    auto top_level = pom::parser::parse(tokens);
+    pom::parser::print(std::cout, *top_level);
 
     std::cout << "--------------" << std::endl;
 

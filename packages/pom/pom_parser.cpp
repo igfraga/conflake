@@ -7,8 +7,10 @@
 
 namespace pom {
 
+namespace parser {
+
 template <class RetT>
-using expected = tl::expected<RetT, Parser::Err>;
+using expected = tl::expected<RetT, Err>;
 
 namespace {
 
@@ -40,7 +42,7 @@ void fmtExpr(fmt::memory_buffer& buff, const ast::Expr& e) {
         e.m_val);
 }
 
-void fmtTlu(fmt::memory_buffer& buff, const Parser::TopLevelUnit& u) {
+void fmtTlu(fmt::memory_buffer& buff, const TopLevelUnit& u) {
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
@@ -89,7 +91,7 @@ static expected<ast::ExprP> parseParenExpr(TokIt& tok_it) {
     }
 
     if (!isCloseParen(*tok_it)) {
-        return tl::make_unexpected(Parser::Err{"expected ')'"});
+        return tl::make_unexpected(Err{"expected ')'"});
     }
     ++tok_it;  // eat ).
     return v;
@@ -103,7 +105,7 @@ static expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it) {
 
     auto ident = std::get_if<lexer::Identifier>(&(*tok_it));
     if (!ident) {
-        return tl::make_unexpected(Parser::Err{"expected identifier"});
+        return tl::make_unexpected(Err{"expected identifier"});
     }
     ++tok_it;
 
@@ -126,7 +128,7 @@ static expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it) {
             }
 
             if (!isOp(*tok_it, ',')) {
-                return tl::make_unexpected(Parser::Err{"Expected ')' or ',' in argument list"});
+                return tl::make_unexpected(Err{"Expected ')' or ',' in argument list"});
             }
             ++tok_it;
         }
@@ -152,8 +154,8 @@ static expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
         ++tok_it;
         return std::make_unique<ast::Expr>(expr);
     }
-    return tl::make_unexpected(Parser::Err{fmt::format(
-        "unknown token when expecting an expression: {0}", lexer::Lexer::toString(*tok_it))});
+    return tl::make_unexpected(Err{fmt::format("unknown token when expecting an expression: {0}",
+                                               lexer::Lexer::toString(*tok_it))});
 }
 
 /// binoprhs
@@ -172,7 +174,7 @@ static expected<ast::ExprP> parseBinOpRHS(int exprPrec, ast::ExprP lhs, TokIt& t
         // Okay, we know this is a binop.
         auto op = std::get_if<lexer::Operator>(&(*tok_it));
         if (!op) {
-            return tl::make_unexpected(Parser::Err{"expected binop"});
+            return tl::make_unexpected(Err{"expected binop"});
         }
         ++tok_it;  // eat binop
 
@@ -214,14 +216,14 @@ static expected<ast::ExprP> parseExpression(TokIt& tok_it) {
 ///   ::= id '(' id* ')'
 static expected<ast::Signature> parsePrototype(TokIt& tok_it) {
     if (!std::holds_alternative<lexer::Identifier>(*tok_it)) {
-        return tl::make_unexpected(Parser::Err{"Expected function name in prototype"});
+        return tl::make_unexpected(Err{"Expected function name in prototype"});
     }
 
     std::string fn_name = std::get<lexer::Identifier>(*tok_it).m_name;
     ++tok_it;
 
     if (!isOpenParen(*tok_it)) {
-        return tl::make_unexpected(Parser::Err{"Expected '(' in prototype"});
+        return tl::make_unexpected(Err{"Expected '(' in prototype"});
     }
     ++tok_it;
 
@@ -235,8 +237,8 @@ static expected<ast::Signature> parsePrototype(TokIt& tok_it) {
             ++tok_it;
             break;
         } else {
-            return tl::make_unexpected(Parser::Err{fmt::format("Unexpected token in prototype: {0}",
-                                                               lexer::Lexer::toString(*tok_it))});
+            return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
+                                                       lexer::Lexer::toString(*tok_it))});
         }
     }
 
@@ -278,7 +280,7 @@ static expected<ast::Signature> parseExtern(TokIt& tok_it) {
 }  // namespace
 
 /// top ::= definition | external | expression | ';'
-expected<Parser::TopLevel> Parser::parse(const std::vector<lexer::Token>& tokens) {
+expected<TopLevel> parse(const std::vector<lexer::Token>& tokens) {
     TopLevel top_level;
     auto     tok_it = tokens.begin();
     while (tok_it != tokens.end()) {
@@ -313,12 +315,14 @@ expected<Parser::TopLevel> Parser::parse(const std::vector<lexer::Token>& tokens
     return top_level;
 }
 
-void Parser::print(std::ostream& ost, const TopLevel& top_level) {
+void print(std::ostream& ost, const TopLevel& top_level) {
     fmt::memory_buffer buff;
     for (auto& e : top_level) {
         fmtTlu(buff, e);
     }
     ost << fmt::to_string(buff);
 }
+
+}  // namespace parser
 
 }  // namespace pom

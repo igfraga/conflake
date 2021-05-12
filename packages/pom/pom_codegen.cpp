@@ -187,7 +187,7 @@ tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Function&
     return function;
 }
 
-tl::expected<int, Err> codegen(const pom::Parser::TopLevel& top_level) {
+tl::expected<int, Err> codegen(const pom::parser::TopLevel& top_level) {
     Program program;
 
     std::string lastfn;
