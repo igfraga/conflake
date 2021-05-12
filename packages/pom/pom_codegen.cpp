@@ -129,7 +129,7 @@ tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Call& c) {
 }
 
 tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Expr& v) {
-    return std::visit([&program](auto&& w) { return codegen(program, w); }, v);
+    return std::visit([&program](auto&& w) { return codegen(program, w); }, v.m_val);
 }
 
 tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Signature& s) {
@@ -152,10 +152,10 @@ tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Signature
 
 tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Function& f) {
     // First, check for an existing function from a previous 'extern' declaration.
-    Function* function = program.m_module->getFunction(f.m_sig->m_name);
+    Function* function = program.m_module->getFunction(f.m_sig.m_name);
 
     if (!function) {
-        auto funcorerr = codegen(program, *f.m_sig);
+        auto funcorerr = codegen(program, f.m_sig);
         if (!funcorerr) {
             return tl::make_unexpected(funcorerr.error());
         }

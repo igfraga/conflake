@@ -9,13 +9,8 @@ namespace pom {
 
 namespace ast {
 
-struct Number;
-struct Var;
-struct BinaryExpr;
-struct Call;
-
-using Expr  = std::variant<Number, Var, BinaryExpr, Call>;
-using ExprP = std::unique_ptr<Expr>;
+struct Expr;
+using ExprP = std::shared_ptr<const Expr>;
 
 struct Number {
     double m_val;
@@ -26,14 +21,14 @@ struct Var {
 };
 
 struct BinaryExpr {
-    char                  m_op;
-    std::unique_ptr<Expr> m_lhs;
-    std::unique_ptr<Expr> m_rhs;
+    char  m_op;
+    ExprP m_lhs;
+    ExprP m_rhs;
 };
 
 struct Call {
-    std::string                        m_function;
-    std::vector<std::unique_ptr<Expr>> m_args;
+    std::string        m_function;
+    std::vector<ExprP> m_args;
 };
 
 struct Signature {
@@ -42,8 +37,17 @@ struct Signature {
 };
 
 struct Function {
-    std::unique_ptr<Signature> m_sig;
-    std::unique_ptr<Expr>      m_code;
+    Signature m_sig;
+    ExprP     m_code;
+};
+
+struct Expr {
+    Expr(Number val) : m_val(std::move(val)) {}
+    Expr(Var val) : m_val(std::move(val)) {}
+    Expr(BinaryExpr val) : m_val(std::move(val)) {}
+    Expr(Call val) : m_val(std::move(val)) {}
+
+    std::variant<Number, Var, BinaryExpr, Call> m_val;
 };
 
 }  // namespace ast
