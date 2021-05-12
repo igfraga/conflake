@@ -1,2 +1,2 @@
-def foo(a b)
+def foo(real a real b)
     a*a + 2*a*b + b*b;

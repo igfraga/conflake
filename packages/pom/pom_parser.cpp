@@ -20,8 +20,8 @@ void printExpr(std::ostream& ost, const ast::Expr& e) {
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, ast::Number>) {
-                ost << fmt::format("d{0}", v.m_val);
+            if constexpr (std::is_same_v<T, ast::Literal>) {
+                std::visit([&](auto& w) { literals::print(ost, w); }, v);
             } else if constexpr (std::is_same_v<T, ast::Var>) {
                 ost << fmt::format("v/{0}", v.m_name);
             } else if constexpr (std::is_same_v<T, ast::BinaryExpr>) {
@@ -42,15 +42,26 @@ void printExpr(std::ostream& ost, const ast::Expr& e) {
         e.m_val);
 }
 
+void printSig(std::ostream& ost, const ast::Signature& sig) {
+    ost << sig.m_name << " <- ";
+    for (auto& [arg_type, arg_name] : sig.m_args) {
+        ost << arg_name << ", ";
+    }
+}
+
+
 void printTlu(std::ostream& ost, const TopLevelUnit& u) {
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Signature>) {
-                ost << fmt::format("extern: {0} <- {1}\n", v.m_name, fmt::join(v.m_arg_names, ","));
+                ost << "extern: ";
+                printSig(ost, v);
+                ost << "\n";
             } else if constexpr (std::is_same_v<T, ast::Function>) {
-                ost << fmt::format("func: {0} <- {1} : ", v.m_sig.m_name,
-                                   fmt::join(v.m_sig.m_arg_names, ","));
+                ost << "func: ";
+                printSig(ost, v.m_sig);
+                ost << ": ";
                 printExpr(ost, *v.m_code);
                 ost << "\n";
             }
@@ -149,7 +160,7 @@ static expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
     } else if (std::holds_alternative<lexer::Identifier>(*tok_it)) {
         return parseIdentifierExpr(tok_it);
     } else if (std::holds_alternative<lexer::Number>(*tok_it)) {
-        auto expr = ast::Number{std::get<lexer::Number>(*tok_it).m_value};
+        auto expr = ast::Literal{literals::Real{std::get<lexer::Number>(*tok_it).m_value}};
         ++tok_it;
         return std::make_unique<ast::Expr>(expr);
     }
@@ -226,19 +237,27 @@ static expected<ast::Signature> parsePrototype(TokIt& tok_it) {
     }
     ++tok_it;
 
-    std::vector<std::string> args;
+    std::vector<std::pair<std::string, std::string>> args;
     while (1) {
-        auto ident = std::get_if<lexer::Identifier>(&(*tok_it));
-        if (ident) {
-            args.push_back(ident->m_name);
-            ++tok_it;
-        } else if (isCloseParen(*tok_it)) {
+        if (isCloseParen(*tok_it)) {
             ++tok_it;
             break;
-        } else {
+        }
+
+        auto type_ident = std::get_if<lexer::Identifier>(&(*tok_it));
+        if (!type_ident) {
             return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
                                                        lexer::Lexer::toString(*tok_it))});
         }
+        ++tok_it;
+
+        auto name_ident = std::get_if<lexer::Identifier>(&(*tok_it));
+        if (!name_ident) {
+            return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
+                                                       lexer::Lexer::toString(*tok_it))});
+        }
+        ++tok_it;
+        args.emplace_back(type_ident->m_name, name_ident->m_name);
     }
 
     return ast::Signature{fn_name, std::move(args)};

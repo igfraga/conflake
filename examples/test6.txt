@@ -1,2 +1,2 @@
-def foo(a) a + 2
+def foo(real a) a + 2
 foo(4)

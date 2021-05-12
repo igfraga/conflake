@@ -16,6 +16,8 @@ add_library(pom STATIC
     pom_jit.h
     pom_lexer.cpp
     pom_lexer.h
+    pom_literals.cpp
+    pom_literals.h
     pom_llvm.cpp
     pom_llvm.h
     pom_model.h

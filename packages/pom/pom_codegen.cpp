@@ -64,8 +64,21 @@ struct Program {
 
 tl::expected<Value*, Err> codegen(Program& program, const ast::Expr& v);
 
-tl::expected<Value*, Err> codegen(Program& program, const ast::Number& v) {
+tl::expected<Value*, Err> codegen(Program& program, const literals::Boolean& v) {
+    return (v.m_val ? ConstantInt::getTrue(*program.m_context)
+                    : ConstantInt::getFalse(*program.m_context));
+}
+
+tl::expected<Value*, Err> codegen(Program& program, const literals::Real& v) {
     return ConstantFP::get(*program.m_context, APFloat(v.m_val));
+}
+
+tl::expected<Value*, Err> codegen(Program& program, const literals::Integer& v) {
+    return ConstantInt::get(*program.m_context, APInt(64, v.m_val, true));
+}
+
+tl::expected<Value*, Err> codegen(Program& program, const ast::Literal& v) {
+    return std::visit([&](auto& e) { return codegen(program, e); }, v);
 }
 
 tl::expected<Value*, Err> codegen(Program& program, const ast::Var& var) {
@@ -134,7 +147,7 @@ tl::expected<Value*, Err> codegen(Program& program, const ast::Expr& v) {
 
 tl::expected<Function*, Err> codegen(Program& program, const ast::Signature& s) {
     // Make the function type:  double(double,double) etc.
-    std::vector<Type*> doubles(s.m_arg_names.size(), Type::getDoubleTy(*program.m_context));
+    std::vector<Type*> doubles(s.m_args.size(), Type::getDoubleTy(*program.m_context));
     FunctionType*      func_type =
         FunctionType::get(Type::getDoubleTy(*program.m_context), doubles, false);
 
@@ -144,7 +157,7 @@ tl::expected<Function*, Err> codegen(Program& program, const ast::Signature& s) 
     // Set names for all arguments.
     unsigned idx = 0;
     for (auto& arg : f->args()) {
-        arg.setName(s.m_arg_names[idx++]);
+        arg.setName(s.m_args[idx++].second);
     }
 
     return f;

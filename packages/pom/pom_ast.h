@@ -5,6 +5,8 @@
 #include <variant>
 #include <vector>
 
+#include <pom_literals.h>
+
 namespace pom {
 
 namespace ast {
@@ -12,9 +14,7 @@ namespace ast {
 struct Expr;
 using ExprP = std::shared_ptr<const Expr>;
 
-struct Number {
-    double m_val;
-};
+using Literal = std::variant<literals::Boolean, literals::Integer, literals::Real>;
 
 struct Var {
     std::string m_name;
@@ -32,8 +32,8 @@ struct Call {
 };
 
 struct Signature {
-    std::string              m_name;
-    std::vector<std::string> m_arg_names;
+    std::string                                      m_name;
+    std::vector<std::pair<std::string, std::string>> m_args; // type, name
 };
 
 struct Function {
@@ -42,12 +42,12 @@ struct Function {
 };
 
 struct Expr {
-    Expr(Number val) : m_val(std::move(val)) {}
+    Expr(Literal val) : m_val(std::move(val)) {}
     Expr(Var val) : m_val(std::move(val)) {}
     Expr(BinaryExpr val) : m_val(std::move(val)) {}
     Expr(Call val) : m_val(std::move(val)) {}
 
-    std::variant<Number, Var, BinaryExpr, Call> m_val;
+    std::variant<Literal, Var, BinaryExpr, Call> m_val;
 };
 
 }  // namespace ast
