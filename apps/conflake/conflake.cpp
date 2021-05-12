@@ -29,12 +29,22 @@ int main(int argc, char** argv) {
     auto path = std::filesystem::u8path(app.get<std::string>("--file"));
 
     std::vector<pom::lexer::Token> tokens;
-    pom::lexer::Lexer::lex(path, tokens);
+    auto reslex = pom::lexer::Lexer::lex(path, tokens);
+    if(!reslex) {
+        std::cout << "Lexer error: " << reslex.error().m_desc << std::endl;
+        return -1;
+    }
+
     pom::lexer::Lexer::print(std::cout, tokens);
 
     std::cout << "--------------" << std::endl;
 
     auto top_level = pom::parser::parse(tokens);
+    if(!top_level) {
+        std::cout << "Lexer error: " << top_level.error().m_desc << std::endl;
+        return -1;
+    }
+
     pom::parser::print(std::cout, *top_level);
 
     std::cout << "--------------" << std::endl;

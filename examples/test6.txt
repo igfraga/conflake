@@ -1,0 +1,2 @@
+def foo(a) a + 2
+foo(4)

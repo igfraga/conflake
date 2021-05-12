@@ -62,13 +62,13 @@ struct Program {
     std::unique_ptr<Jit>                               m_jit;
 };
 
-tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Expr& v);
+tl::expected<Value*, Err> codegen(Program& program, const ast::Expr& v);
 
-tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Number& v) {
+tl::expected<Value*, Err> codegen(Program& program, const ast::Number& v) {
     return ConstantFP::get(*program.m_context, APFloat(v.m_val));
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Var& var) {
+tl::expected<Value*, Err> codegen(Program& program, const ast::Var& var) {
     // Look this variable up in the function.
     Value* v = program.m_named_values[var.m_name];
     if (!v) {
@@ -77,7 +77,7 @@ tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Var& var) {
     return v;
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const pom::ast::BinaryExpr& e) {
+tl::expected<Value*, Err> codegen(Program& program, const ast::BinaryExpr& e) {
     auto lv = codegen(program, *e.m_lhs);
     if (!lv) {
         return lv;
@@ -104,7 +104,7 @@ tl::expected<Value*, Err> codegen(Program& program, const pom::ast::BinaryExpr& 
     }
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Call& c) {
+tl::expected<Value*, Err> codegen(Program& program, const ast::Call& c) {
     // Look up the name in the global module table.
     Function* function = program.m_module->getFunction(c.m_function);
     if (!function) {
@@ -128,11 +128,11 @@ tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Call& c) {
     return program.m_builder->CreateCall(function, args, "calltmp");
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const pom::ast::Expr& v) {
+tl::expected<Value*, Err> codegen(Program& program, const ast::Expr& v) {
     return std::visit([&program](auto&& w) { return codegen(program, w); }, v.m_val);
 }
 
-tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Signature& s) {
+tl::expected<Function*, Err> codegen(Program& program, const ast::Signature& s) {
     // Make the function type:  double(double,double) etc.
     std::vector<Type*> doubles(s.m_arg_names.size(), Type::getDoubleTy(*program.m_context));
     FunctionType*      func_type =
@@ -150,7 +150,7 @@ tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Signature
     return f;
 }
 
-tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Function& f) {
+tl::expected<Function*, Err> codegen(Program& program, const ast::Function& f) {
     // First, check for an existing function from a previous 'extern' declaration.
     Function* function = program.m_module->getFunction(f.m_sig.m_name);
 
@@ -187,7 +187,7 @@ tl::expected<Function*, Err> codegen(Program& program, const pom::ast::Function&
     return function;
 }
 
-tl::expected<int, Err> codegen(const pom::parser::TopLevel& top_level) {
+tl::expected<int, Err> codegen(const parser::TopLevel& top_level) {
     Program program;
 
     std::string lastfn;
