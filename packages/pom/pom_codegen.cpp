@@ -24,8 +24,6 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 
-using namespace llvm;
-
 namespace pom {
 
 namespace codegen {
@@ -33,13 +31,13 @@ namespace codegen {
 struct Program {
     Program() {
         // Open a new context and module.
-        m_context = std::make_unique<LLVMContext>();
-        m_module  = std::make_unique<Module>("my cool jit", *m_context);
+        m_context = std::make_unique<llvm::LLVMContext>();
+        m_module  = std::make_unique<llvm::Module>("my cool jit", *m_context);
 
         // Create a new builder for the module.
-        m_builder = std::make_unique<IRBuilder<>>(*m_context);
+        m_builder = std::make_unique<llvm::IRBuilder<>>(*m_context);
 
-        m_fpm = std::make_unique<legacy::FunctionPassManager>(m_module.get());
+        m_fpm = std::make_unique<llvm::legacy::FunctionPassManager>(m_module.get());
         // Do simple "peephole" optimizations and bit-twiddling optzns.
         m_fpm->add(llvm::createInstructionCombiningPass());
         // Reassociate expressions.
@@ -54,43 +52,43 @@ struct Program {
         m_module->setDataLayout(m_jit->getTargetMachine().createDataLayout());
     }
 
-    std::unique_ptr<LLVMContext>                       m_context;
-    std::unique_ptr<Module>                            m_module;
-    std::unique_ptr<IRBuilder<>>                       m_builder;
-    std::map<std::string, Value*>                      m_named_values;
+    std::unique_ptr<llvm::LLVMContext>                 m_context;
+    std::unique_ptr<llvm::Module>                      m_module;
+    std::unique_ptr<llvm::IRBuilder<>>                 m_builder;
+    std::map<std::string, llvm::Value*>                m_named_values;
     std::unique_ptr<llvm::legacy::FunctionPassManager> m_fpm;
     std::unique_ptr<Jit>                               m_jit;
 };
 
-tl::expected<Value*, Err> codegen(Program& program, const ast::Expr& v);
+tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Expr& v);
 
-tl::expected<Value*, Err> codegen(Program& program, const literals::Boolean& v) {
-    return (v.m_val ? ConstantInt::getTrue(*program.m_context)
-                    : ConstantInt::getFalse(*program.m_context));
+tl::expected<llvm::Value*, Err> codegen(Program& program, const literals::Boolean& v) {
+    return (v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
+                    : llvm::ConstantInt::getFalse(*program.m_context));
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const literals::Real& v) {
-    return ConstantFP::get(*program.m_context, APFloat(v.m_val));
+tl::expected<llvm::Value*, Err> codegen(Program& program, const literals::Real& v) {
+    return llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val));
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const literals::Integer& v) {
-    return ConstantInt::get(*program.m_context, APInt(64, v.m_val, true));
+tl::expected<llvm::Value*, Err> codegen(Program& program, const literals::Integer& v) {
+    return llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true));
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const ast::Literal& v) {
+tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Literal& v) {
     return std::visit([&](auto& e) { return codegen(program, e); }, v);
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const ast::Var& var) {
+tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Var& var) {
     // Look this variable up in the function.
-    Value* v = program.m_named_values[var.m_name];
+    llvm::Value* v = program.m_named_values[var.m_name];
     if (!v) {
         return tl::make_unexpected(Err{"Unknown variable name"});
     }
     return v;
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const ast::BinaryExpr& e) {
+tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::BinaryExpr& e) {
     auto lv = codegen(program, *e.m_lhs);
     if (!lv) {
         return lv;
@@ -110,16 +108,16 @@ tl::expected<Value*, Err> codegen(Program& program, const ast::BinaryExpr& e) {
         case '<':
             lv = program.m_builder->CreateFCmpULT(*lv, *lr, "cmptmp");
             // Convert bool 0/1 to double 0.0 or 1.0
-            return program.m_builder->CreateUIToFP(*lv, Type::getDoubleTy(*program.m_context),
+            return program.m_builder->CreateUIToFP(*lv, llvm::Type::getDoubleTy(*program.m_context),
                                                    "booltmp");
         default:
             return tl::make_unexpected(Err{"invalid binary operator"});
     }
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const ast::Call& c) {
+tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Call& c) {
     // Look up the name in the global module table.
-    Function* function = program.m_module->getFunction(c.m_function);
+    llvm::Function* function = program.m_module->getFunction(c.m_function);
     if (!function) {
         return tl::make_unexpected(Err{"Unknown function referenced"});
     }
@@ -129,7 +127,7 @@ tl::expected<Value*, Err> codegen(Program& program, const ast::Call& c) {
                                                    function->arg_size(), c.m_args.size())});
     }
 
-    std::vector<Value*> args;
+    std::vector<llvm::Value*> args;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
         auto aa = codegen(program, *c.m_args[i]);
         if (!aa) {
@@ -141,18 +139,18 @@ tl::expected<Value*, Err> codegen(Program& program, const ast::Call& c) {
     return program.m_builder->CreateCall(function, args, "calltmp");
 }
 
-tl::expected<Value*, Err> codegen(Program& program, const ast::Expr& v) {
+tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Expr& v) {
     return std::visit([&program](auto&& w) { return codegen(program, w); }, v.m_val);
 }
 
-tl::expected<Function*, Err> codegen(Program& program, const ast::Signature& s) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Signature& s) {
     // Make the function type:  double(double,double) etc.
-    std::vector<Type*> doubles(s.m_args.size(), Type::getDoubleTy(*program.m_context));
-    FunctionType*      func_type =
-        FunctionType::get(Type::getDoubleTy(*program.m_context), doubles, false);
+    std::vector<llvm::Type*> doubles(s.m_args.size(), llvm::Type::getDoubleTy(*program.m_context));
+    llvm::FunctionType*      func_type =
+        llvm::FunctionType::get(llvm::Type::getDoubleTy(*program.m_context), doubles, false);
 
-    Function* f =
-        Function::Create(func_type, Function::ExternalLinkage, s.m_name, program.m_module.get());
+    llvm::Function* f = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, s.m_name,
+                                               program.m_module.get());
 
     // Set names for all arguments.
     unsigned idx = 0;
@@ -163,9 +161,9 @@ tl::expected<Function*, Err> codegen(Program& program, const ast::Signature& s) 
     return f;
 }
 
-tl::expected<Function*, Err> codegen(Program& program, const ast::Function& f) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Function& f) {
     // First, check for an existing function from a previous 'extern' declaration.
-    Function* function = program.m_module->getFunction(f.m_sig.m_name);
+    llvm::Function* function = program.m_module->getFunction(f.m_sig.m_name);
 
     if (!function) {
         auto funcorerr = codegen(program, f.m_sig);
@@ -176,7 +174,7 @@ tl::expected<Function*, Err> codegen(Program& program, const ast::Function& f) {
     }
 
     // Create a new basic block to start insertion into.
-    BasicBlock* bb = BasicBlock::Create(*program.m_context, "entry", function);
+    llvm::BasicBlock* bb = llvm::BasicBlock::Create(*program.m_context, "entry", function);
     program.m_builder->SetInsertPoint(bb);
 
     // Record the function arguments in the NamedValues map.
@@ -219,7 +217,7 @@ tl::expected<int, Err> codegen(const parser::TopLevel& top_level) {
         return 0;
     }
 
-    program.m_module->print(errs(), nullptr);
+    program.m_module->print(llvm::errs(), nullptr);
 
     auto handle = program.m_jit->addModule(std::move(program.m_module));
 
