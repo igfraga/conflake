@@ -62,6 +62,12 @@ struct Lexer {
     static std::string toString(const Token& token);
 };
 
+inline std::ostream& operator<<(std::ostream& os, const Token& value) {
+    os << Lexer::toString(value);
+    return os;
+}
+
 }  // namespace lexer
 
 }  // namespace pom
+

@@ -54,6 +54,7 @@ TEST_CASE("Test lexer on files", "[lexer]") {
             {
                 Keyword::k_def,
                 Ident{"foo"}, Op{'('}, Ident{"real"}, Ident{"a"}, Ident{"real"}, Ident{"b"}, Op{')'},
+                Op{':'}, Ident{"real"},
                 Ident{"a"}, Op{'*'}, Ident{"a"},
                 Op{'+'}, Real{2.0}, Op{'*'}, Ident{"a"}, Op{'*'}, Ident{"b"},
                 Op{'+'}, Ident{"b"}, Op{'*'}, Ident{"b"}, Op{';'}, Eof{}
@@ -63,7 +64,8 @@ TEST_CASE("Test lexer on files", "[lexer]") {
             CONFLAKE_EXAMPLES "/test4.txt",
             {
                 Keyword::k_extern,
-                Ident{"cos"}, Op{'('}, Ident{"real"}, Ident{"x"}, Op{')'}, Op{';'},
+                Ident{"cos"}, Op{'('}, Ident{"real"}, Ident{"x"}, Op{')'},
+                Op{':'}, Ident{"real"}, Op{';'},
                 Ident{"cos"}, Op{'('}, Real{1.234}, Op{')'}, Op{';'}, Eof{}
             }
         }
