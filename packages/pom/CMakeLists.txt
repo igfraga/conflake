@@ -8,10 +8,14 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 add_library(pom STATIC
     pom_ast.cpp
     pom_ast.h
+    pom_basictypes.cpp
+    pom_basictypes.h
     pom_codegen.cpp
     pom_codegen.h
     pom_entry.cpp
     pom_entry.h
+    pom_functiontype.cpp
+    pom_functiontype.h
     pom_jit.cpp
     pom_jit.h
     pom_lexer.cpp

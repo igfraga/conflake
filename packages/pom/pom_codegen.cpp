@@ -4,6 +4,7 @@
 #include <fmt/format.h>
 
 #include <pom_jit.h>
+#include <pom_basictypes.h>
 #include <iostream>
 
 #include "llvm/ADT/APFloat.h"
@@ -62,7 +63,7 @@ struct Program {
 
 struct DecValue {
     llvm::Value* m_value;
-    Type         m_type;
+    TypeCSP      m_type;
 };
 
 tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
@@ -71,17 +72,17 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
 tl::expected<DecValue, Err> literalValue(Program& program, const literals::Boolean& v) {
     return DecValue{(v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
                              : llvm::ConstantInt::getFalse(*program.m_context)),
-                    Type("boolean")};
+                    types::boolean()};
 }
 
 tl::expected<DecValue, Err> literalValue(Program& program, const literals::Real& v) {
     return DecValue{llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val)),
-                    Type("real")};
+                    types::real()};
 }
 
 tl::expected<DecValue, Err> literalValue(Program& program, const literals::Integer& v) {
     return DecValue{llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true)),
-                    Type("int")};
+                    types::integer()};
 }
 
 tl::expected<DecValue, Err> codegen(Program&            program, const semantic::Context&,
@@ -99,8 +100,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
     auto fo = context.m_variables.find(var.m_name);
     if (fo == context.m_variables.end()) {
         semantic::print(std::cout, context);
-        return tl::make_unexpected(Err{
-            fmt::format("Unknown variable name: {0}", var.m_name)});
+        return tl::make_unexpected(Err{fmt::format("Unknown variable name: {0}", var.m_name)});
     }
     return DecValue{v, fo->second};
 }
@@ -116,7 +116,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
         return lr;
     }
 
-    if (lv->m_type.name() == "int") {
+    if (lv->m_type->mangled() == "integer") {
         switch (e.m_op) {
             case '+':
 
@@ -132,7 +132,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
             default:
                 return tl::make_unexpected(Err{"invalid binary operator"});
         }
-    } else if (lv->m_type.name() == "real") {
+    } else if (lv->m_type->mangled() == "real") {
         switch (e.m_op) {
             case '+':
 
@@ -157,7 +157,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
     // llvm::Type::getDoubleTy(*program.m_context),
     //                                      "booltmp");
     return tl::make_unexpected(
-        Err{fmt::format("Operator {0} not supported for type {1}", e.m_op, lv->m_type.name())});
+        Err{fmt::format("Operator {0} not supported for type {1}", e.m_op, lv->m_type->description())});
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
@@ -195,17 +195,17 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
     return std::visit([&](auto&& w) { return codegen(program, context, w); }, v.m_val);
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Signature& s,
-                                           std::string tp) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Signature& s,
+                                           TypeCSP tp) {
     // Make the function type:  double(double,double) etc.
 
-    auto toLlvm = [&](const std::string& tp) -> tl::expected<llvm::Type*, Err> {
-        if (tp == "real") {
+    auto toLlvm = [&](const TypeCSP& tp) -> tl::expected<llvm::Type*, Err> {
+        if (tp->mangled() == "real") {
             return llvm::Type::getDoubleTy(*program.m_context);
-        } else if (tp == "int") {
+        } else if (tp->mangled() == "integer") {
             return llvm::Type::getInt64Ty(*program.m_context);
         } else {
-            return tl::make_unexpected(Err{fmt::format("type not supported: {0}", tp)});
+            return tl::make_unexpected(Err{fmt::format("type not supported: {0}", tp->description())});
         }
     };
 
@@ -237,13 +237,13 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Signatur
     return f;
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Function& f, std::string) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Function& f,
+                                           TypeCSP) {
     // First, check for an existing function from a previous 'extern' declaration.
-    auto&           func     = f.m_function;
-    llvm::Function* function = program.m_module->getFunction(func.m_sig.m_name);
+    llvm::Function* function = program.m_module->getFunction(f.m_sig.m_name);
 
     if (!function) {
-        auto funcorerr = codegen(program, func.m_sig, f.m_return_type.name());
+        auto funcorerr = codegen(program, f.m_sig, f.type()->returnType());
         if (!funcorerr) {
             return tl::make_unexpected(funcorerr.error());
         }
@@ -260,7 +260,7 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Fun
         program.m_named_values[std::string(arg.getName())] = &arg;
     }
 
-    auto retVal = codegen(program, f.m_context, *func.m_code);
+    auto retVal = codegen(program, f.m_context, *f.m_code);
     if (!retVal) {
         function->eraseFromParent();
         return tl::make_unexpected(retVal.error());
@@ -280,9 +280,10 @@ tl::expected<int, Err> codegen(const semantic::TopLevel& top_level) {
     Program program;
 
     std::string lastfn;
-    Type        tp("");
+    TypeCSP     tp;
     for (auto& tpu : top_level) {
-        auto fn_or_err = std::visit([&program](auto&& v) { return codegen(program, v, "real"); }, tpu);
+        auto fn_or_err =
+            std::visit([&program](auto&& v) { return codegen(program, v, types::real()); }, tpu);
         if (!fn_or_err) {
             return tl::make_unexpected(fn_or_err.error());
         }
@@ -290,7 +291,7 @@ tl::expected<int, Err> codegen(const semantic::TopLevel& top_level) {
             lastfn  = (*fn_or_err)->getName().str();
             auto fn = std::get_if<semantic::Function>(&tpu);
             assert(fn);
-            tp = fn->m_return_type;
+            tp = fn->type()->returnType();
         }
     }
 
@@ -307,14 +308,14 @@ tl::expected<int, Err> codegen(const semantic::TopLevel& top_level) {
     if (!symbol) {
         return tl::make_unexpected(Err{fmt::format("Could not find symbol: {0}", lastfn)});
     }
-    if (tp.name() == "real") {
+    if (tp->mangled() == "real") {
         double (*fp)() = (double (*)())(uint64_t)*symbol.getAddress();
         std::cout << "Evaluated: " << fp() << std::endl;
-    } else if (tp.name() == "int") {
-        int64_t (*fp)() = (int64_t (*)())(uint64_t)*symbol.getAddress();
+    } else if (tp->mangled() == "integer") {
+        int64_t (*fp)() = (int64_t(*)())(uint64_t)*symbol.getAddress();
         std::cout << "Evaluated: " << fp() << std::endl;
     } else {
-        std::cout << "Cannot evaluate something of type " << tp.name() << std::endl;
+        std::cout << "Cannot evaluate something of type " << tp->description() << std::endl;
     }
 
     program.m_jit->removeModule(handle);
