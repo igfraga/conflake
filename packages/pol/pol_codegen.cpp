@@ -3,6 +3,7 @@
 
 #include <fmt/format.h>
 
+#include <pol_basicoperators.h>
 #include <pol_jit.h>
 #include <pom_basictypes.h>
 #include <iostream>
@@ -92,7 +93,6 @@ tl::expected<DecValue, Err> codegen(Program&                 program, const pom:
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::Var& var) {
-
     // Look this variable up in the function.
     llvm::Value* v = program.m_named_values[var.m_name];
     if (!v) {
@@ -117,48 +117,12 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return lr;
     }
 
-    if (lv->m_type->mangled() == "integer") {
-        switch (e.m_op) {
-            case '+':
-
-                return DecValue{program.m_builder->CreateAdd(lv->m_value, lr->m_value, "addtmp"),
-                                lv->m_type};
-            case '-':
-                return DecValue{program.m_builder->CreateSub(lv->m_value, lr->m_value, "subtmp"),
-                                lv->m_type};
-            case '*':
-                return DecValue{program.m_builder->CreateMul(lv->m_value, lr->m_value, "multmp"),
-                                lv->m_type};
-
-            default:
-                return tl::make_unexpected(Err{"invalid binary operator"});
-        }
-    } else if (lv->m_type->mangled() == "real") {
-        switch (e.m_op) {
-            case '+':
-
-                return DecValue{program.m_builder->CreateFAdd(lv->m_value, lr->m_value, "addtmp"),
-                                lv->m_type};
-            case '-':
-                return DecValue{program.m_builder->CreateFSub(lv->m_value, lr->m_value, "subtmp"),
-                                lv->m_type};
-            case '*':
-                return DecValue{program.m_builder->CreateFMul(lv->m_value, lr->m_value, "multmp"),
-                                lv->m_type};
-
-            default:
-                return tl::make_unexpected(Err{"invalid binary operator"});
-        }
+    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), e.m_op, *lv->m_type, lv->m_value,
+                                               lr->m_value);
+    if(!bop) {
+        return tl::make_unexpected(Err{bop.error().m_desc});
     }
-
-    // case '<':
-    // lv = program.m_builder->CreateFCmpULT(*lv, *lr, "cmptmp");
-    // Convert bool 0/1 to double 0.0 or 1.0
-    // return program.m_builder->CreateUIToFP(*lv,
-    // llvm::Type::getDoubleTy(*program.m_context),
-    //                                      "booltmp");
-    return tl::make_unexpected(Err{
-        fmt::format("Operator {0} not supported for type {1}", e.m_op, lv->m_type->description())});
+    return DecValue{*bop, lv->m_type};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,

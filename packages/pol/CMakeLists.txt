@@ -6,6 +6,8 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 add_library(pol STATIC
+    pol_basicoperators.cpp
+    pol_basicoperators.h
     pol_codegen.cpp
     pol_codegen.h
     pol_jit.cpp
