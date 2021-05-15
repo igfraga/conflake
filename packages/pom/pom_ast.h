@@ -33,7 +33,7 @@ struct Call {
 
 struct Signature {
     std::string                                      m_name;
-    std::vector<std::pair<std::string, std::string>> m_args; // type, name
+    std::vector<std::pair<std::string, std::string>> m_args;  // type, name
 };
 
 struct Function {
@@ -42,13 +42,17 @@ struct Function {
 };
 
 struct Expr {
-    Expr(Literal val) : m_val(std::move(val)) {}
-    Expr(Var val) : m_val(std::move(val)) {}
-    Expr(BinaryExpr val) : m_val(std::move(val)) {}
-    Expr(Call val) : m_val(std::move(val)) {}
+    explicit Expr(Literal val) : m_val(std::move(val)) {}
+    explicit Expr(Var val) : m_val(std::move(val)) {}
+    explicit Expr(BinaryExpr val) : m_val(std::move(val)) {}
+    explicit Expr(Call val) : m_val(std::move(val)) {}
 
     std::variant<Literal, Var, BinaryExpr, Call> m_val;
 };
+
+void print(std::ostream& ost, const ast::Expr& e);
+
+void print(std::ostream& ost, const ast::Signature& e);
 
 }  // namespace ast
 

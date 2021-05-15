@@ -25,6 +25,10 @@ add_library(pom STATIC
     pom_node.h
     pom_parser.cpp
     pom_parser.h
+    pom_semantic.cpp
+    pom_semantic.h
+    pom_type.cpp
+    pom_type.h
 )
 
 conflake_source_groups(pom)
@@ -38,16 +42,16 @@ target_compile_definitions(pom PUBLIC ${LLVM_DEFINITIONS})
 target_include_directories(pom PUBLIC ${LLVM_INCLUDE_DIRS})
 
 llvm_map_components_to_libnames(llvm_libs 
-  Analysis
-  Core
-  ExecutionEngine
-  InstCombine
-  Object
-  OrcJIT
-  RuntimeDyld
-  ScalarOpts
-  Support
-  native
+    Analysis
+    Core
+    ExecutionEngine
+    InstCombine
+    Object
+    OrcJIT
+    RuntimeDyld
+    ScalarOpts
+    Support
+    native
 )
 
 target_link_libraries(pom PUBLIC ${llvm_libs})

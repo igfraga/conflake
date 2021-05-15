@@ -16,59 +16,6 @@ namespace {
 
 using TokIt = std::vector<lexer::Token>::const_iterator;
 
-void printExpr(std::ostream& ost, const ast::Expr& e) {
-    std::visit(
-        [&](auto&& v) {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, ast::Literal>) {
-                std::visit([&](auto& w) { literals::print(ost, w); }, v);
-            } else if constexpr (std::is_same_v<T, ast::Var>) {
-                ost << fmt::format("v/{0}", v.m_name);
-            } else if constexpr (std::is_same_v<T, ast::BinaryExpr>) {
-                ost << fmt::format("(be: {0} ", v.m_op);
-                printExpr(ost, *v.m_lhs);
-                ost << " ";
-                printExpr(ost, *v.m_rhs);
-                ost << ")";
-            } else if constexpr (std::is_same_v<T, ast::Call>) {
-                fmt::format("[call {0} <- ", v.m_function);
-                for (auto& a : v.m_args) {
-                    printExpr(ost, *a);
-                    ost << ", ";
-                }
-                ost << "]";
-            }
-        },
-        e.m_val);
-}
-
-void printSig(std::ostream& ost, const ast::Signature& sig) {
-    ost << sig.m_name << " <- ";
-    for (auto& [arg_type, arg_name] : sig.m_args) {
-        ost << arg_name << ", ";
-    }
-}
-
-
-void printTlu(std::ostream& ost, const TopLevelUnit& u) {
-    std::visit(
-        [&](auto&& v) {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, ast::Signature>) {
-                ost << "extern: ";
-                printSig(ost, v);
-                ost << "\n";
-            } else if constexpr (std::is_same_v<T, ast::Function>) {
-                ost << "func: ";
-                printSig(ost, v.m_sig);
-                ost << ": ";
-                printExpr(ost, *v.m_code);
-                ost << "\n";
-            }
-        },
-        u);
-}
-
 static int tokPrecedence(const lexer::Token& tok) {
     static std::map<char, int> binopPrecedence;
     if (binopPrecedence.empty()) {
@@ -159,8 +106,12 @@ static expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
         return parseParenExpr(tok_it);
     } else if (std::holds_alternative<lexer::Identifier>(*tok_it)) {
         return parseIdentifierExpr(tok_it);
-    } else if (std::holds_alternative<lexer::Number>(*tok_it)) {
-        auto expr = ast::Literal{literals::Real{std::get<lexer::Number>(*tok_it).m_value}};
+    } else if (std::holds_alternative<literals::Real>(*tok_it)) {
+        auto expr = ast::Literal{std::get<literals::Real>(*tok_it)};
+        ++tok_it;
+        return std::make_unique<ast::Expr>(expr);
+    } else if (std::holds_alternative<literals::Integer>(*tok_it)) {
+        auto expr = ast::Literal{std::get<literals::Integer>(*tok_it)};
         ++tok_it;
         return std::make_unique<ast::Expr>(expr);
     }
@@ -331,6 +282,25 @@ expected<TopLevel> parse(const std::vector<lexer::Token>& tokens) {
         }
     }
     return top_level;
+}
+
+void printTlu(std::ostream& ost, const TopLevelUnit& u) {
+    std::visit(
+        [&](auto&& v) {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, ast::Signature>) {
+                ost << "extern: ";
+                ast::print(ost, v);
+                ost << "\n";
+            } else if constexpr (std::is_same_v<T, ast::Function>) {
+                ost << "func: ";
+                ast::print(ost, v.m_sig);
+                ost << ": ";
+                ast::print(ost, *v.m_code);
+                ost << "\n";
+            }
+        },
+        u);
 }
 
 void print(std::ostream& ost, const TopLevel& top_level) {

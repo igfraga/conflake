@@ -60,62 +60,108 @@ struct Program {
     std::unique_ptr<Jit>                               m_jit;
 };
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Expr& v);
+struct DecValue {
+    llvm::Value* m_value;
+    Type         m_type;
+};
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const literals::Boolean& v) {
-    return (v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
-                    : llvm::ConstantInt::getFalse(*program.m_context));
+tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
+                                    const ast::Expr& v);
+
+tl::expected<DecValue, Err> literalValue(Program& program, const literals::Boolean& v) {
+    return DecValue{(v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
+                             : llvm::ConstantInt::getFalse(*program.m_context)),
+                    Type("boolean")};
 }
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const literals::Real& v) {
-    return llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val));
+tl::expected<DecValue, Err> literalValue(Program& program, const literals::Real& v) {
+    return DecValue{llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val)),
+                    Type("real")};
 }
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const literals::Integer& v) {
-    return llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true));
+tl::expected<DecValue, Err> literalValue(Program& program, const literals::Integer& v) {
+    return DecValue{llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true)),
+                    Type("int")};
 }
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Literal& v) {
-    return std::visit([&](auto& e) { return codegen(program, e); }, v);
+tl::expected<DecValue, Err> codegen(Program&            program, const semantic::Context&,
+                                    const ast::Literal& v) {
+    return std::visit([&](auto& e) { return literalValue(program, e); }, v);
 }
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Var& var) {
+tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
+                                    const ast::Var& var) {
     // Look this variable up in the function.
     llvm::Value* v = program.m_named_values[var.m_name];
     if (!v) {
-        return tl::make_unexpected(Err{"Unknown variable name"});
+        return tl::make_unexpected(Err{"Unknown variable name (old)"});
     }
-    return v;
+    auto fo = context.m_variables.find(var.m_name);
+    if (fo == context.m_variables.end()) {
+        semantic::print(std::cout, context);
+        return tl::make_unexpected(Err{
+            fmt::format("Unknown variable name: {0}", var.m_name)});
+    }
+    return DecValue{v, fo->second};
 }
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::BinaryExpr& e) {
-    auto lv = codegen(program, *e.m_lhs);
+tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
+                                    const ast::BinaryExpr& e) {
+    auto lv = codegen(program, context, *e.m_lhs);
     if (!lv) {
         return lv;
     }
-    auto lr = codegen(program, *e.m_rhs);
+    auto lr = codegen(program, context, *e.m_rhs);
     if (!lr) {
         return lr;
     }
 
-    switch (e.m_op) {
-        case '+':
-            return program.m_builder->CreateFAdd(*lv, *lr, "addtmp");
-        case '-':
-            return program.m_builder->CreateFSub(*lv, *lr, "subtmp");
-        case '*':
-            return program.m_builder->CreateFMul(*lv, *lr, "multmp");
-        case '<':
-            lv = program.m_builder->CreateFCmpULT(*lv, *lr, "cmptmp");
-            // Convert bool 0/1 to double 0.0 or 1.0
-            return program.m_builder->CreateUIToFP(*lv, llvm::Type::getDoubleTy(*program.m_context),
-                                                   "booltmp");
-        default:
-            return tl::make_unexpected(Err{"invalid binary operator"});
+    if (lv->m_type.name() == "int") {
+        switch (e.m_op) {
+            case '+':
+
+                return DecValue{program.m_builder->CreateAdd(lv->m_value, lr->m_value, "addtmp"),
+                                lv->m_type};
+            case '-':
+                return DecValue{program.m_builder->CreateSub(lv->m_value, lr->m_value, "subtmp"),
+                                lv->m_type};
+            case '*':
+                return DecValue{program.m_builder->CreateMul(lv->m_value, lr->m_value, "multmp"),
+                                lv->m_type};
+
+            default:
+                return tl::make_unexpected(Err{"invalid binary operator"});
+        }
+    } else if (lv->m_type.name() == "real") {
+        switch (e.m_op) {
+            case '+':
+
+                return DecValue{program.m_builder->CreateFAdd(lv->m_value, lr->m_value, "addtmp"),
+                                lv->m_type};
+            case '-':
+                return DecValue{program.m_builder->CreateFSub(lv->m_value, lr->m_value, "subtmp"),
+                                lv->m_type};
+            case '*':
+                return DecValue{program.m_builder->CreateFMul(lv->m_value, lr->m_value, "multmp"),
+                                lv->m_type};
+
+            default:
+                return tl::make_unexpected(Err{"invalid binary operator"});
+        }
     }
+
+    // case '<':
+    // lv = program.m_builder->CreateFCmpULT(*lv, *lr, "cmptmp");
+    // Convert bool 0/1 to double 0.0 or 1.0
+    // return program.m_builder->CreateUIToFP(*lv,
+    // llvm::Type::getDoubleTy(*program.m_context),
+    //                                      "booltmp");
+    return tl::make_unexpected(
+        Err{fmt::format("Operator {0} not supported for type {1}", e.m_op, lv->m_type.name())});
 }
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Call& c) {
+tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
+                                    const ast::Call& c) {
     // Look up the name in the global module table.
     llvm::Function* function = program.m_module->getFunction(c.m_function);
     if (!function) {
@@ -129,25 +175,55 @@ tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Call& c) {
 
     std::vector<llvm::Value*> args;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
-        auto aa = codegen(program, *c.m_args[i]);
+        auto aa = codegen(program, context, *c.m_args[i]);
         if (!aa) {
             return aa;
         }
-        args.push_back(*aa);
+        args.push_back(aa->m_value);
     }
 
-    return program.m_builder->CreateCall(function, args, "calltmp");
+    auto ret_type = semantic::calculateType(c, context);
+    if (!ret_type) {
+        return tl::make_unexpected(Err{ret_type.error().m_desc});
+    }
+
+    return DecValue{program.m_builder->CreateCall(function, args, "calltmp"), *ret_type};
 }
 
-tl::expected<llvm::Value*, Err> codegen(Program& program, const ast::Expr& v) {
-    return std::visit([&program](auto&& w) { return codegen(program, w); }, v.m_val);
+tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
+                                    const ast::Expr& v) {
+    return std::visit([&](auto&& w) { return codegen(program, context, w); }, v.m_val);
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Signature& s) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Signature& s,
+                                           std::string tp) {
     // Make the function type:  double(double,double) etc.
-    std::vector<llvm::Type*> doubles(s.m_args.size(), llvm::Type::getDoubleTy(*program.m_context));
-    llvm::FunctionType*      func_type =
-        llvm::FunctionType::get(llvm::Type::getDoubleTy(*program.m_context), doubles, false);
+
+    auto toLlvm = [&](const std::string& tp) -> tl::expected<llvm::Type*, Err> {
+        if (tp == "real") {
+            return llvm::Type::getDoubleTy(*program.m_context);
+        } else if (tp == "int") {
+            return llvm::Type::getInt64Ty(*program.m_context);
+        } else {
+            return tl::make_unexpected(Err{fmt::format("type not supported: {0}", tp)});
+        }
+    };
+
+    std::vector<llvm::Type*> llvm_args;
+    for (auto& arg : s.m_args) {
+        auto lt = toLlvm(arg.first);
+        if (!lt) {
+            return tl::make_unexpected(lt.error());
+        }
+        llvm_args.push_back(*lt);
+    }
+
+    auto ret_type = toLlvm(tp);
+    if (!ret_type) {
+        return tl::make_unexpected(ret_type.error());
+    }
+
+    llvm::FunctionType* func_type = llvm::FunctionType::get(*ret_type, llvm_args, false);
 
     llvm::Function* f = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, s.m_name,
                                                program.m_module.get());
@@ -161,12 +237,13 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Signatur
     return f;
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Function& f) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Function& f, std::string) {
     // First, check for an existing function from a previous 'extern' declaration.
-    llvm::Function* function = program.m_module->getFunction(f.m_sig.m_name);
+    auto&           func     = f.m_function;
+    llvm::Function* function = program.m_module->getFunction(func.m_sig.m_name);
 
     if (!function) {
-        auto funcorerr = codegen(program, f.m_sig);
+        auto funcorerr = codegen(program, func.m_sig, f.m_return_type.name());
         if (!funcorerr) {
             return tl::make_unexpected(funcorerr.error());
         }
@@ -182,13 +259,14 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Function
     for (auto& arg : function->args()) {
         program.m_named_values[std::string(arg.getName())] = &arg;
     }
-    auto retVal = codegen(program, *f.m_code);
+
+    auto retVal = codegen(program, f.m_context, *func.m_code);
     if (!retVal) {
         function->eraseFromParent();
         return tl::make_unexpected(retVal.error());
     }
     // Finish off the function.
-    program.m_builder->CreateRet(*retVal);
+    program.m_builder->CreateRet(retVal->m_value);
 
     // Validate the generated code, checking for consistency.
     verifyFunction(*function);
@@ -198,17 +276,21 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const ast::Function
     return function;
 }
 
-tl::expected<int, Err> codegen(const parser::TopLevel& top_level) {
+tl::expected<int, Err> codegen(const semantic::TopLevel& top_level) {
     Program program;
 
     std::string lastfn;
+    Type        tp("");
     for (auto& tpu : top_level) {
-        auto fn_or_err = std::visit([&program](auto&& v) { return codegen(program, v); }, tpu);
+        auto fn_or_err = std::visit([&program](auto&& v) { return codegen(program, v, "real"); }, tpu);
         if (!fn_or_err) {
             return tl::make_unexpected(fn_or_err.error());
         }
         if ((*fn_or_err)->arg_empty()) {
-            lastfn = (*fn_or_err)->getName().str();
+            lastfn  = (*fn_or_err)->getName().str();
+            auto fn = std::get_if<semantic::Function>(&tpu);
+            assert(fn);
+            tp = fn->m_return_type;
         }
     }
 
@@ -217,7 +299,7 @@ tl::expected<int, Err> codegen(const parser::TopLevel& top_level) {
         return 0;
     }
 
-    program.m_module->print(llvm::errs(), nullptr);
+    program.m_module->print(llvm::outs(), nullptr);
 
     auto handle = program.m_jit->addModule(std::move(program.m_module));
 
@@ -225,9 +307,15 @@ tl::expected<int, Err> codegen(const parser::TopLevel& top_level) {
     if (!symbol) {
         return tl::make_unexpected(Err{fmt::format("Could not find symbol: {0}", lastfn)});
     }
-    double (*fp)() = (double (*)())(uint64_t)*symbol.getAddress();
-
-    std::cout << "Evaluated: " << fp() << std::endl;
+    if (tp.name() == "real") {
+        double (*fp)() = (double (*)())(uint64_t)*symbol.getAddress();
+        std::cout << "Evaluated: " << fp() << std::endl;
+    } else if (tp.name() == "int") {
+        int64_t (*fp)() = (int64_t (*)())(uint64_t)*symbol.getAddress();
+        std::cout << "Evaluated: " << fp() << std::endl;
+    } else {
+        std::cout << "Cannot evaluate something of type " << tp.name() << std::endl;
+    }
 
     program.m_jit->removeModule(handle);
     return 0;

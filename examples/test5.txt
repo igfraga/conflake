@@ -1,1 +1,2 @@
 def test(real x) (1+2+x)*(x+(1+2));
+test(1)

@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <pom_literals.h>
 #include <filesystem>
 #include <tl/expected.hpp>
 #include <variant>
@@ -39,13 +40,8 @@ struct Identifier {
     bool operator==(const Identifier& other) const { return other.m_name == m_name; }
 };
 
-struct Number {
-    double m_value;
-
-    bool operator==(const Number& other) const { return other.m_value == m_value; }
-};
-
-using Token = std::variant<Keyword, Operator, Comment, Eof, Identifier, Number>;
+using Token =
+    std::variant<Keyword, Operator, Comment, Eof, Identifier, literals::Real, literals::Integer>;
 
 inline bool isOp(const Token& tok, char op) {
     return std::holds_alternative<Operator>(tok) && std::get<Operator>(tok).m_op == op;
@@ -56,6 +52,8 @@ inline bool isOpenParen(const Token& tok) { return isOp(tok, '('); }
 inline bool isCloseParen(const Token& tok) { return isOp(tok, ')'); }
 
 struct Lexer {
+    static tl::expected<void, Err> lex(std::istream& stream, std::vector<Token>& tokens);
+
     static tl::expected<void, Err> lex(const std::filesystem::path& path,
                                        std::vector<Token>&          tokens);
 
@@ -63,11 +61,6 @@ struct Lexer {
 
     static std::string toString(const Token& token);
 };
-
-inline std::ostream& operator<<(std::ostream& os, const Token& value) {
-    os << Lexer::toString(value);
-    return os;
-}
 
 }  // namespace lexer
 

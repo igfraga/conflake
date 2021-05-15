@@ -3,6 +3,7 @@
 
 #include <fmt/format.h>
 #include <algorithm>
+#include <charconv>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -15,7 +16,7 @@ namespace pom {
 
 namespace lexer {
 
-inline Token nexttok(std::istream& ist, char& lastChar) {
+inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar) {
     auto nextch = [&ist]() -> char { return char(ist.get()); };
 
     // Skip any whitespace.
@@ -46,8 +47,23 @@ inline Token nexttok(std::istream& ist, char& lastChar) {
             lastChar = nextch();
         } while (std::isdigit(lastChar) || lastChar == '.');
 
-        auto numVal = strtod(numStr.c_str(), nullptr);
-        return Number{numVal};
+        if (lastChar == 'i') {
+            lastChar = nextch();
+            if (std::count(numStr.begin(), numStr.end(), '.') > 0) {
+                return tl::make_unexpected(
+                    Err{fmt::format("Integer can't have period: {0}i", numStr)});
+            }
+            int64_t val;
+            auto [p, ec] = std::from_chars(numStr.data(), numStr.data() + numStr.size(), val);
+            if (ec != std::errc()) {
+                return tl::make_unexpected(Err{fmt::format("Error parsing number: {0}i", numStr)});
+            }
+
+            return literals::Integer{val};
+        }
+
+        double dval = strtod(numStr.c_str(), nullptr);
+        return literals::Real{dval};
     }
 
     if (lastChar == '#') {
@@ -69,24 +85,32 @@ inline Token nexttok(std::istream& ist, char& lastChar) {
     return tok;
 }
 
+tl::expected<void, Err> Lexer::lex(std::istream& ist, std::vector<Token>& tokens) {
+    char lastChar = ' ';
+    while (1) {
+        auto tok = nexttok(ist, lastChar);
+        if (!tok) {
+            return tl::make_unexpected(Err{tok.error()});
+        }
+
+        if (std::holds_alternative<Comment>(*tok)) {
+            continue;
+        }
+        tokens.push_back(*tok);
+        if (std::holds_alternative<Eof>(*tok)) {
+            break;
+        }
+    }
+
+    return {};
+}
+
 tl::expected<void, Err> Lexer::lex(const std::filesystem::path& path, std::vector<Token>& tokens) {
     std::ifstream fs(path, std::ios_base::in);
     if (!fs.good()) {
         return tl::make_unexpected(Err{"Error opening file"});
     }
-
-    char lastChar = ' ';
-    while (1) {
-        auto tok = nexttok(fs, lastChar);
-        if (std::holds_alternative<Comment>(tok)) {
-            continue;
-        }
-        tokens.push_back(tok);
-        if (std::holds_alternative<Eof>(tok)) {
-            break;
-        }
-    }
-    return {};
+    return lex(fs, tokens);
 }
 
 void fmtTok(fmt::memory_buffer& buff, const Token& token) {
@@ -109,8 +133,10 @@ void fmtTok(fmt::memory_buffer& buff, const Token& token) {
                 fmt::format_to(buff, "EOF\n");
             } else if constexpr (std::is_same_v<T, Identifier>) {
                 fmt::format_to(buff, "identifier: {0}\n", arg.m_name);
-            } else if constexpr (std::is_same_v<T, Number>) {
-                fmt::format_to(buff, "number: {0}\n", arg.m_value);
+            } else if constexpr (std::is_same_v<T, literals::Integer>) {
+                fmt::format_to(buff, "int: {0}\n", arg.m_val);
+            } else if constexpr (std::is_same_v<T, literals::Real>) {
+                fmt::format_to(buff, "real: {0}\n", arg.m_val);
             }
         },
         token);

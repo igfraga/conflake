@@ -29,7 +29,7 @@ TEST_CASE("Some parser test", "[parser]") {
         },
         {
             CONFLAKE_EXAMPLES "/test5.txt",
-            1ull
+            2ull
         }
     };
     // clang-format on
