@@ -14,8 +14,6 @@ add_library(pom STATIC
     pom_lexer.h
     pom_literals.cpp
     pom_literals.h
-    pom_node.cpp
-    pom_node.h
     pom_parser.cpp
     pom_parser.h
     pom_semantic.cpp
