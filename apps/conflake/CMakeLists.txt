@@ -5,7 +5,7 @@ add_executable(conflake conflake.cpp)
 
 conflake_source_groups(conflake)
 
-target_link_libraries(conflake PRIVATE pom argparse)
+target_link_libraries(conflake PRIVATE pol argparse)
 
 target_compile_features(conflake PRIVATE cxx_std_17)
 

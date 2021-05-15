@@ -1,9 +1,9 @@
 
-#include <pom_codegen.h>
+#include <pol_codegen.h>
 
 #include <fmt/format.h>
 
-#include <pom_jit.h>
+#include <pol_jit.h>
 #include <pom_basictypes.h>
 #include <iostream>
 
@@ -25,7 +25,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 
-namespace pom {
+namespace pol {
 
 namespace codegen {
 
@@ -63,35 +63,36 @@ struct Program {
 
 struct DecValue {
     llvm::Value* m_value;
-    TypeCSP      m_type;
+    pom::TypeCSP m_type;
 };
 
-tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
-                                    const ast::Expr& v);
+tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
+                                    const pom::ast::Expr& v);
 
-tl::expected<DecValue, Err> literalValue(Program& program, const literals::Boolean& v) {
+tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Boolean& v) {
     return DecValue{(v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
                              : llvm::ConstantInt::getFalse(*program.m_context)),
-                    types::boolean()};
+                    pom::types::boolean()};
 }
 
-tl::expected<DecValue, Err> literalValue(Program& program, const literals::Real& v) {
+tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Real& v) {
     return DecValue{llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val)),
-                    types::real()};
+                    pom::types::real()};
 }
 
-tl::expected<DecValue, Err> literalValue(Program& program, const literals::Integer& v) {
+tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Integer& v) {
     return DecValue{llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true)),
-                    types::integer()};
+                    pom::types::integer()};
 }
 
-tl::expected<DecValue, Err> codegen(Program&            program, const semantic::Context&,
-                                    const ast::Literal& v) {
+tl::expected<DecValue, Err> codegen(Program&                 program, const pom::semantic::Context&,
+                                    const pom::ast::Literal& v) {
     return std::visit([&](auto& e) { return literalValue(program, e); }, v);
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
-                                    const ast::Var& var) {
+tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
+                                    const pom::ast::Var& var) {
+
     // Look this variable up in the function.
     llvm::Value* v = program.m_named_values[var.m_name];
     if (!v) {
@@ -99,14 +100,14 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
     }
     auto fo = context.m_variables.find(var.m_name);
     if (fo == context.m_variables.end()) {
-        semantic::print(std::cout, context);
+        pom::semantic::print(std::cout, context);
         return tl::make_unexpected(Err{fmt::format("Unknown variable name: {0}", var.m_name)});
     }
     return DecValue{v, fo->second};
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
-                                    const ast::BinaryExpr& e) {
+tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
+                                    const pom::ast::BinaryExpr& e) {
     auto lv = codegen(program, context, *e.m_lhs);
     if (!lv) {
         return lv;
@@ -156,12 +157,12 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
     // return program.m_builder->CreateUIToFP(*lv,
     // llvm::Type::getDoubleTy(*program.m_context),
     //                                      "booltmp");
-    return tl::make_unexpected(
-        Err{fmt::format("Operator {0} not supported for type {1}", e.m_op, lv->m_type->description())});
+    return tl::make_unexpected(Err{
+        fmt::format("Operator {0} not supported for type {1}", e.m_op, lv->m_type->description())});
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
-                                    const ast::Call& c) {
+tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
+                                    const pom::ast::Call& c) {
     // Look up the name in the global module table.
     llvm::Function* function = program.m_module->getFunction(c.m_function);
     if (!function) {
@@ -182,7 +183,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
         args.push_back(aa->m_value);
     }
 
-    auto ret_type = semantic::calculateType(c, context);
+    auto ret_type = pom::semantic::calculateType(c, context);
     if (!ret_type) {
         return tl::make_unexpected(Err{ret_type.error().m_desc});
     }
@@ -190,21 +191,22 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
     return DecValue{program.m_builder->CreateCall(function, args, "calltmp"), *ret_type};
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& context,
-                                    const ast::Expr& v) {
+tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
+                                    const pom::ast::Expr& v) {
     return std::visit([&](auto&& w) { return codegen(program, context, w); }, v.m_val);
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Signature& s) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Signature& s) {
     // Make the function type:  double(double,double) etc.
 
-    auto toLlvm = [&](const TypeCSP& tp) -> tl::expected<llvm::Type*, Err> {
+    auto toLlvm = [&](const pom::TypeCSP& tp) -> tl::expected<llvm::Type*, Err> {
         if (tp->mangled() == "real") {
             return llvm::Type::getDoubleTy(*program.m_context);
         } else if (tp->mangled() == "integer") {
             return llvm::Type::getInt64Ty(*program.m_context);
         } else {
-            return tl::make_unexpected(Err{fmt::format("type not supported: {0}", tp->description())});
+            return tl::make_unexpected(
+                Err{fmt::format("type not supported: {0}", tp->description())});
         }
     };
 
@@ -236,7 +238,7 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Sig
     return f;
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Function& f) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Function& f) {
     // First, check for an existing function from a previous 'extern' declaration.
     llvm::Function* function = program.m_module->getFunction(f.m_sig.m_name);
 
@@ -274,20 +276,19 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Fun
     return function;
 }
 
-tl::expected<int, Err> codegen(const semantic::TopLevel& top_level) {
+tl::expected<int, Err> codegen(const pom::semantic::TopLevel& top_level) {
     Program program;
 
-    std::string lastfn;
-    TypeCSP     tp;
+    std::string  lastfn;
+    pom::TypeCSP tp;
     for (auto& tpu : top_level) {
-        auto fn_or_err =
-            std::visit([&program](auto&& v) { return codegen(program, v); }, tpu);
+        auto fn_or_err = std::visit([&program](auto&& v) { return codegen(program, v); }, tpu);
         if (!fn_or_err) {
             return tl::make_unexpected(fn_or_err.error());
         }
         if ((*fn_or_err)->arg_empty()) {
             lastfn  = (*fn_or_err)->getName().str();
-            auto fn = std::get_if<semantic::Function>(&tpu);
+            auto fn = std::get_if<pom::semantic::Function>(&tpu);
             assert(fn);
             tp = fn->type()->returnType();
         }
@@ -322,4 +323,4 @@ tl::expected<int, Err> codegen(const semantic::TopLevel& top_level) {
 
 }  // namespace codegen
 
-}  // namespace pom
+}  // namespace pol

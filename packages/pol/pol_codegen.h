@@ -4,7 +4,7 @@
 #include <pom_semantic.h>
 #include <tl/expected.hpp>
 
-namespace pom {
+namespace pol {
 
 namespace codegen {
 
@@ -16,4 +16,4 @@ tl::expected<int, Err> codegen(const pom::semantic::TopLevel& tl);
 
 }  // namespace codegen
 
-}  // namespace pom
+}  // namespace pol

@@ -13,4 +13,5 @@ conan_define_targets()
 
 add_subdirectory(thirdparty)
 add_subdirectory(packages/pom pom)
+add_subdirectory(packages/pol pol)
 add_subdirectory(apps/conflake)

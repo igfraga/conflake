@@ -11,7 +11,7 @@
 #include "llvm/IR/Mangler.h"
 #include "llvm/Target/TargetMachine.h"
 
-namespace pom {
+namespace pol {
 
 class Jit {
    public:
@@ -43,4 +43,4 @@ class Jit {
     std::vector<ModuleKey>                     ModuleKeys;
 };
 
-}  // namespace pom
+}  // namespace pol

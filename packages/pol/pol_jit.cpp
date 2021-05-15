@@ -1,5 +1,5 @@
 
-#include <pom_jit.h>
+#include <pol_jit.h>
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/iterator_range.h"
@@ -8,7 +8,7 @@
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/raw_ostream.h"
 
-namespace pom {
+namespace pol {
 
 Jit::Jit()
     : Resolver(llvm::orc::createLegacyLookupResolver(
@@ -82,4 +82,4 @@ llvm::JITSymbol Jit::findMangledSymbol(const std::string& Name) {
     return nullptr;
 }
 
-}  // namespace pom
+}  // namespace pol

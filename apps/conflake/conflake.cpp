@@ -1,9 +1,9 @@
 
 #include <fmt/format.h>
 
-#include <pom_codegen.h>
+#include <pol_codegen.h>
+#include <pol_llvm.h>
 #include <pom_lexer.h>
-#include <pom_llvm.h>
 #include <pom_parser.h>
 #include <pom_semantic.h>
 
@@ -24,11 +24,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    pom::initLlvm();
+    pol::initLlvm();
 
     auto path = std::filesystem::u8path(app.get<std::string>("--file"));
 
-    //auto path = std::filesystem::u8path("/home/ignacio/workspace/conflake/examples/test7.txt");
+    // auto path = std::filesystem::u8path("/home/ignacio/workspace/conflake/examples/test7.txt");
 
     std::vector<pom::lexer::Token> tokens;
     auto                           reslex = pom::lexer::Lexer::lex(path, tokens);
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 
     std::cout << "--------------" << std::endl;
 
-    auto err = pom::codegen::codegen(*sematic_res);
+    auto err = pol::codegen::codegen(*sematic_res);
     if (!err) {
         std::cout << "Error: " << err.error().m_desc << std::endl;
     }
