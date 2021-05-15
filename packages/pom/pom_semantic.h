@@ -24,13 +24,13 @@ struct Context {
 struct Signature {
     std::string                                  m_name;
     std::vector<std::pair<TypeCSP, std::string>> m_args;
+    TypeCSP                                      m_return_type;
 };
 
 struct Function {
     Signature  m_sig;
     ast::ExprP m_code;
     Context    m_context;
-    TypeCSP    m_return_type;
 
     TypeCSP type() const;
 };

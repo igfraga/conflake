@@ -1,2 +1,2 @@
-extern cos(real x);
+extern cos(real x) : real;
 cos(1.234);

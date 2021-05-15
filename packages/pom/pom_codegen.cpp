@@ -195,8 +195,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const semantic::Context& c
     return std::visit([&](auto&& w) { return codegen(program, context, w); }, v.m_val);
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Signature& s,
-                                           TypeCSP tp) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Signature& s) {
     // Make the function type:  double(double,double) etc.
 
     auto toLlvm = [&](const TypeCSP& tp) -> tl::expected<llvm::Type*, Err> {
@@ -218,7 +217,7 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Sig
         llvm_args.push_back(*lt);
     }
 
-    auto ret_type = toLlvm(tp);
+    auto ret_type = toLlvm(s.m_return_type);
     if (!ret_type) {
         return tl::make_unexpected(ret_type.error());
     }
@@ -237,13 +236,12 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Sig
     return f;
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Function& f,
-                                           TypeCSP) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const semantic::Function& f) {
     // First, check for an existing function from a previous 'extern' declaration.
     llvm::Function* function = program.m_module->getFunction(f.m_sig.m_name);
 
     if (!function) {
-        auto funcorerr = codegen(program, f.m_sig, f.type()->returnType());
+        auto funcorerr = codegen(program, f.m_sig);
         if (!funcorerr) {
             return tl::make_unexpected(funcorerr.error());
         }
@@ -283,7 +281,7 @@ tl::expected<int, Err> codegen(const semantic::TopLevel& top_level) {
     TypeCSP     tp;
     for (auto& tpu : top_level) {
         auto fn_or_err =
-            std::visit([&program](auto&& v) { return codegen(program, v, types::real()); }, tpu);
+            std::visit([&program](auto&& v) { return codegen(program, v); }, tpu);
         if (!fn_or_err) {
             return tl::make_unexpected(fn_or_err.error());
         }

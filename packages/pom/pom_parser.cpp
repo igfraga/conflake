@@ -211,7 +211,20 @@ static expected<ast::Signature> parsePrototype(TokIt& tok_it) {
         args.emplace_back(type_ident->m_name, name_ident->m_name);
     }
 
-    return ast::Signature{fn_name, std::move(args)};
+    std::optional<std::string> ret_type;
+    if (isOp(*tok_it, ':')) {
+        ++tok_it;
+
+        auto ret_type_ident = std::get_if<lexer::Identifier>(&(*tok_it));
+        if (!ret_type_ident) {
+            return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
+                                                       lexer::Lexer::toString(*tok_it))});
+        }
+        ++tok_it;
+        ret_type = ret_type_ident->m_name;
+    }
+
+    return ast::Signature{fn_name, std::move(args), std::move(ret_type)};
 }
 
 /// definition ::= 'def' prototype expression

@@ -7,6 +7,8 @@
 #include <pom_basictypes.h>
 #include <pom_functiontype.h>
 
+#include <cassert>
+
 namespace pom {
 
 namespace semantic {
@@ -71,16 +73,16 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, const Context& c
     return std::visit([&](auto& x) { return calculateType(x, context); }, expr.m_val);
 }
 
-TypeCSP signatureType(const Signature& sig, TypeCSP ret_type) {
+TypeCSP signatureType(const Signature& sig) {
     types::Function fun;
     fun.m_arg_types.resize(sig.m_args.size());
     std::transform(sig.m_args.begin(), sig.m_args.end(), fun.m_arg_types.begin(),
                    [](auto& arg) { return arg.first; });
-    fun.m_ret_type = ret_type;
+    fun.m_ret_type = sig.m_return_type;
     return std::make_shared<types::Function>(fun);
 }
 
-TypeCSP Function::type() const { return signatureType(m_sig, m_return_type); }
+TypeCSP Function::type() const { return signatureType(m_sig); }
 
 tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) {
     Signature sem_sig;
@@ -91,6 +93,9 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) 
             return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", arg.first)});
         }
         sem_sig.m_args.push_back({typ, arg.second});
+    }
+    if(sig.m_ret_type) {
+        sem_sig.m_return_type = types::basicTypeFromStr(*sig.m_ret_type);
     }
     return sem_sig;
 }
@@ -106,16 +111,45 @@ tl::expected<Function, Err> analyze(const ast::Function& function, const Context
         context.m_variables.insert({arg.second, arg.first});
     }
 
-    // recursion TODO: generalize type
-    auto fun_type = signatureType(*sig, types::real());
-    context.m_variables.insert({function.m_sig.m_name, fun_type});
+    if(sig->m_return_type) {
+        // allow recursion
+        context.m_variables.insert({function.m_sig.m_name, signatureType(*sig)});
+    }
 
     auto ret_type = calculateType(*function.m_code, context);
     if (!ret_type) {
         return tl::make_unexpected(ret_type.error());
     }
+    assert(*ret_type);
+    if(sig->m_return_type) {
+        if(*sig->m_return_type != **ret_type) {
+            return tl::make_unexpected(
+                Err{fmt::format("Function declared return type {0} but evaluated to type {1}",
+                                sig->m_return_type->description(),
+                                (*ret_type)->description())});
+        }
+    }
+    else {
+        sig->m_return_type = *ret_type;
+    }
 
-    return Function{*sig, function.m_code, context, *ret_type};
+    return Function{*sig, function.m_code, context};
+}
+
+tl::expected<TopLevelUnit, Err> analyzeExtern(const ast::Signature& extrn, Context& context) {
+    if (!extrn.m_ret_type) {
+        return tl::make_unexpected(
+            Err{fmt::format("extern function {0} does not specify return type", extrn.m_name)});
+    }
+
+    auto sig = analyze(extrn, context);
+    if (!sig) {
+        return tl::make_unexpected(sig.error());
+    }
+    assert(sig->m_return_type);
+    context.m_variables.insert(
+        {extrn.m_name, signatureType(*sig)});
+    return *sig;
 }
 
 tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
@@ -124,24 +158,20 @@ tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
 
     for (auto& unit : top_level) {
         if (std::holds_alternative<ast::Signature>(unit)) {
-            auto& extrn = std::get<ast::Signature>(unit);
-            auto  sig   = analyze(extrn, context);
-            if (!sig) {
-                return tl::make_unexpected(sig.error());
+            auto tlu = analyzeExtern(std::get<ast::Signature>(unit), context);
+            if (!tlu) {
+                return tl::make_unexpected(tlu.error());
             }
-            context.m_variables.insert({extrn.m_name, signatureType(*sig, types::real())}); // TODO: generalize
-            semantic_top_level.push_back(*sig);
+            semantic_top_level.push_back(*tlu);
         } else if (std::holds_alternative<ast::Function>(unit)) {
-            auto& fn = std::get<ast::Function>(unit);
-
-            auto sem_fn = analyze(fn, context);
+            auto sem_fn = analyze(std::get<ast::Function>(unit), context);
             if (!sem_fn) {
                 return tl::make_unexpected(sem_fn.error());
             }
 
             semantic_top_level.push_back(*sem_fn);
 
-            context.m_variables.insert({fn.m_sig.m_name, sem_fn->type()});
+            context.m_variables.insert({sem_fn->m_sig.m_name, sem_fn->type()});
         }
     }
 

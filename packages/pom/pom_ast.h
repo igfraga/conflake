@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -34,6 +35,7 @@ struct Call {
 struct Signature {
     std::string                                      m_name;
     std::vector<std::pair<std::string, std::string>> m_args;  // type, name
+    std::optional<std::string>                       m_ret_type;
 };
 
 struct Function {
