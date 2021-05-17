@@ -60,12 +60,14 @@ int main(int argc, char** argv) {
 
     std::cout << "--------------" << std::endl;
 
-    auto err = pol::codegen::codegen(*sematic_res);
+    auto err = pol::codegen::codegen(*sematic_res, true);
     if (!err) {
         std::cout << "Error: " << err.error().m_desc << std::endl;
     }
+    std::cout << "Evaluated: " << *err << std::endl;
 
     std::cout << "====================" << std::endl;
+
 
     return 0;
 }

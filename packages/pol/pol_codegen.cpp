@@ -117,9 +117,9 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return lr;
     }
 
-    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), e.m_op, *lv->m_type, lv->m_value,
-                                               lr->m_value);
-    if(!bop) {
+    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), e.m_op, *lv->m_type,
+                                               lv->m_value, lr->m_value);
+    if (!bop) {
         return tl::make_unexpected(Err{bop.error().m_desc});
     }
     return DecValue{*bop, lv->m_type};
@@ -240,7 +240,7 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic
     return function;
 }
 
-tl::expected<int, Err> codegen(const pom::semantic::TopLevel& top_level) {
+tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool print_ir) {
     Program program;
 
     std::string  lastfn;
@@ -259,11 +259,12 @@ tl::expected<int, Err> codegen(const pom::semantic::TopLevel& top_level) {
     }
 
     if (lastfn.empty()) {
-        std::cout << "Nothing to evaluate" << std::endl;
-        return 0;
+        return Result();
     }
 
-    program.m_module->print(llvm::outs(), nullptr);
+    if (print_ir) {
+        program.m_module->print(llvm::outs(), nullptr);
+    }
 
     auto handle = program.m_jit->addModule(std::move(program.m_module));
 
@@ -271,18 +272,29 @@ tl::expected<int, Err> codegen(const pom::semantic::TopLevel& top_level) {
     if (!symbol) {
         return tl::make_unexpected(Err{fmt::format("Could not find symbol: {0}", lastfn)});
     }
+
+    Result res;
     if (tp->mangled() == "real") {
         double (*fp)() = (double (*)())(uint64_t)*symbol.getAddress();
-        std::cout << "Evaluated: " << fp() << std::endl;
+        res.m_ev       = fp();
     } else if (tp->mangled() == "integer") {
         int64_t (*fp)() = (int64_t(*)())(uint64_t)*symbol.getAddress();
-        std::cout << "Evaluated: " << fp() << std::endl;
-    } else {
-        std::cout << "Cannot evaluate something of type " << tp->description() << std::endl;
+        res.m_ev        = fp();
     }
 
     program.m_jit->removeModule(handle);
-    return 0;
+    return res;
+}
+
+std::ostream& operator<<(std::ostream& os, const Result& res) {
+    if (std::holds_alternative<double>(res.m_ev)) {
+        os << std::get<double>(res.m_ev) << std::endl;
+    } else if (std::holds_alternative<int64_t>(res.m_ev)) {
+        os << std::get<int64_t>(res.m_ev) << "i" << std::endl;
+    } else {
+        os << "void" << std::endl;
+    }
+    return os;
 }
 
 }  // namespace codegen

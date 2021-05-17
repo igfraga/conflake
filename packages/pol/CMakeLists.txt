@@ -43,4 +43,4 @@ target_link_libraries(pol PUBLIC ${llvm_libs})
 
 target_compile_features(pol PRIVATE cxx_std_17)
 
-#add_subdirectory(test)
+add_subdirectory(test)
