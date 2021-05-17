@@ -12,6 +12,8 @@ add_library(pom STATIC
     pom_functiontype.h
     pom_lexer.cpp
     pom_lexer.h
+    pom_listtype.cpp    
+    pom_listtype.h
     pom_literals.cpp
     pom_literals.h
     pom_parser.cpp

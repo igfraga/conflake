@@ -107,6 +107,11 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
+                                    const pom::ast::ListExpr& e) {
+    return tl::make_unexpected(Err{"Not implemented"});
+}
+
+tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::BinaryExpr& e) {
     auto lv = codegen(program, context, *e.m_lhs);
     if (!lv) {

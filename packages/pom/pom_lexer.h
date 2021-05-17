@@ -51,6 +51,10 @@ inline bool isOpenParen(const Token& tok) { return isOp(tok, '('); }
 
 inline bool isCloseParen(const Token& tok) { return isOp(tok, ')'); }
 
+inline bool isOpenBracket(const Token& tok) { return isOp(tok, '['); }
+
+inline bool isCloseBracket(const Token& tok) { return isOp(tok, ']'); }
+
 struct Lexer {
     static tl::expected<void, Err> lex(std::istream& stream, std::vector<Token>& tokens);
 

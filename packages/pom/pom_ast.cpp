@@ -7,30 +7,43 @@ namespace pom {
 
 namespace ast {
 
+struct Printer {
+    Printer(std::ostream& ost) : m_ost(ost) {}
+
+    void operator()(const ast::Literal& v) {
+        std::visit([&](auto& w) { literals::print(m_ost, w); }, v);
+    }
+    void operator()(const ast::Var& v) { m_ost << fmt::format("v/{0}", v.m_name); }
+    void operator()(const ast::BinaryExpr& v) {
+        m_ost << fmt::format("(be: {0} ", v.m_op);
+        print(m_ost, *v.m_lhs);
+        m_ost << " ";
+        print(m_ost, *v.m_rhs);
+        m_ost << ")";
+    }
+    void operator()(const ast::Call& v) {
+        fmt::format("[call {0} <- ", v.m_function);
+        for (auto& a : v.m_args) {
+            print(m_ost, *a);
+            m_ost << ", ";
+        }
+        m_ost << "]";
+    }
+    void operator()(const ast::ListExpr& v) {
+        m_ost << "[";
+        for (auto& e : v.m_expressions) {
+            print(m_ost, *e);
+            m_ost << ", ";
+        }
+        m_ost << "]";
+    }
+
+    std::ostream& m_ost;
+};
+
 void print(std::ostream& ost, const ast::Expr& e) {
-    std::visit(
-        [&](auto&& v) {
-            using T = std::decay_t<decltype(v)>;
-            if constexpr (std::is_same_v<T, ast::Literal>) {
-                std::visit([&](auto& w) { literals::print(ost, w); }, v);
-            } else if constexpr (std::is_same_v<T, ast::Var>) {
-                ost << fmt::format("v/{0}", v.m_name);
-            } else if constexpr (std::is_same_v<T, ast::BinaryExpr>) {
-                ost << fmt::format("(be: {0} ", v.m_op);
-                print(ost, *v.m_lhs);
-                ost << " ";
-                print(ost, *v.m_rhs);
-                ost << ")";
-            } else if constexpr (std::is_same_v<T, ast::Call>) {
-                fmt::format("[call {0} <- ", v.m_function);
-                for (auto& a : v.m_args) {
-                    print(ost, *a);
-                    ost << ", ";
-                }
-                ost << "]";
-            }
-        },
-        e.m_val);
+    Printer p(ost);
+    std::visit(p, e.m_val);
 }
 
 void print(std::ostream& ost, const ast::Signature& sig) {

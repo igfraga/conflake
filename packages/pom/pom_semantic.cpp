@@ -6,6 +6,7 @@
 
 #include <pom_basictypes.h>
 #include <pom_functiontype.h>
+#include <pom_listtype.h>
 
 #include <cassert>
 
@@ -38,6 +39,27 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, const Context& con
             Err{fmt::format("Variable {0} not found in this context", var.m_name)});
     }
     return found->second;
+}
+
+tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, const Context& context) {
+    TypeCSP ty;
+    for (auto& expr : li.m_expressions) {
+        auto res = calculateType(*expr, context);
+        if (!res) {
+            return res;
+        }
+        assert(*res);
+        if (!ty) {
+            ty = *res;
+        }
+
+        if (*ty != **res) {
+            return tl::make_unexpected(
+                Err{fmt::format("Mismatching types in lists, found {0} and {1}", ty->description(),
+                                (*res)->description())});
+        }
+    }
+    return std::make_shared<types::List>(ty);
 }
 
 tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, const Context& context) {
@@ -94,7 +116,7 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) 
         }
         sem_sig.m_args.push_back({typ, arg.second});
     }
-    if(sig.m_ret_type) {
+    if (sig.m_ret_type) {
         sem_sig.m_return_type = types::basicTypeFromStr(*sig.m_ret_type);
     }
     return sem_sig;
@@ -111,7 +133,7 @@ tl::expected<Function, Err> analyze(const ast::Function& function, const Context
         context.m_variables.insert({arg.second, arg.first});
     }
 
-    if(sig->m_return_type) {
+    if (sig->m_return_type) {
         // allow recursion
         context.m_variables.insert({function.m_sig.m_name, signatureType(*sig)});
     }
@@ -121,15 +143,13 @@ tl::expected<Function, Err> analyze(const ast::Function& function, const Context
         return tl::make_unexpected(ret_type.error());
     }
     assert(*ret_type);
-    if(sig->m_return_type) {
-        if(*sig->m_return_type != **ret_type) {
+    if (sig->m_return_type) {
+        if (*sig->m_return_type != **ret_type) {
             return tl::make_unexpected(
                 Err{fmt::format("Function declared return type {0} but evaluated to type {1}",
-                                sig->m_return_type->description(),
-                                (*ret_type)->description())});
+                                sig->m_return_type->description(), (*ret_type)->description())});
         }
-    }
-    else {
+    } else {
         sig->m_return_type = *ret_type;
     }
 
@@ -147,8 +167,7 @@ tl::expected<TopLevelUnit, Err> analyzeExtern(const ast::Signature& extrn, Conte
         return tl::make_unexpected(sig.error());
     }
     assert(sig->m_return_type);
-    context.m_variables.insert(
-        {extrn.m_name, signatureType(*sig)});
+    context.m_variables.insert({extrn.m_name, signatureType(*sig)});
     return *sig;
 }
 

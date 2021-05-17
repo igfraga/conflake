@@ -12,11 +12,11 @@ namespace parser {
 template <class RetT>
 using expected = tl::expected<RetT, Err>;
 
-namespace {
-
 using TokIt = std::vector<lexer::Token>::const_iterator;
 
-static int tokPrecedence(const lexer::Token& tok) {
+namespace {
+
+int tokPrecedence(const lexer::Token& tok) {
     static std::map<char, int> binopPrecedence;
     if (binopPrecedence.empty()) {
         // Install standard binary operators.
@@ -37,10 +37,10 @@ static int tokPrecedence(const lexer::Token& tok) {
     return fo->second;
 }
 
-static expected<ast::ExprP> parseExpression(TokIt& tok_it);
+expected<ast::ExprP> parseExpression(TokIt& tok_it);
 
 /// parenexpr ::= '(' expression ')'
-static expected<ast::ExprP> parseParenExpr(TokIt& tok_it) {
+expected<ast::ExprP> parseParenExpr(TokIt& tok_it) {
     ++tok_it;  // eat (.
     auto v = parseExpression(tok_it);
     if (!v) {
@@ -54,10 +54,25 @@ static expected<ast::ExprP> parseParenExpr(TokIt& tok_it) {
     return v;
 }
 
+expected<ast::ExprP> parseListExpr(TokIt& tok_it) {
+    ++tok_it;  // eat [.
+
+    ast::ListExpr li;
+    while (!lexer::isCloseBracket(*tok_it)) {
+        auto v = parseExpression(tok_it);
+        if (!v) {
+            return nullptr;
+        }
+        li.m_expressions.push_back(std::move(*v));
+    }
+    ++tok_it;  // eat ].
+    return std::make_shared<ast::Expr>(std::move(li));
+}
+
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
-static expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it) {
+expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it) {
     std::vector<ast::ExprP> args;
 
     auto ident = std::get_if<lexer::Identifier>(&(*tok_it));
@@ -94,16 +109,18 @@ static expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it) {
     // Eat the ')'.
     ++tok_it;
 
-    return std::make_unique<ast::Expr>(ast::Call{ident->m_name, std::move(args)});
+    return std::make_shared<ast::Expr>(ast::Call{ident->m_name, std::move(args)});
 }
 
 /// primary
 ///   ::= identifierexpr
 ///   ::= numberexpr
 ///   ::= parenexpr
-static expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
-    if (isOpenParen(*tok_it)) {
+expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
+    if (lexer::isOpenParen(*tok_it)) {
         return parseParenExpr(tok_it);
+    } else if (lexer::isOpenBracket(*tok_it)) {
+        return parseListExpr(tok_it);
     } else if (std::holds_alternative<lexer::Identifier>(*tok_it)) {
         return parseIdentifierExpr(tok_it);
     } else if (std::holds_alternative<literals::Real>(*tok_it)) {
@@ -121,7 +138,7 @@ static expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
 
 /// binoprhs
 ///   ::= ('+' primary)*
-static expected<ast::ExprP> parseBinOpRHS(int exprPrec, ast::ExprP lhs, TokIt& tok_it) {
+expected<ast::ExprP> parseBinOpRHS(int exprPrec, ast::ExprP lhs, TokIt& tok_it) {
     // If this is a binop, find its precedence.
     while (true) {
         int tokPrec = tokPrecedence(*tok_it);
@@ -164,7 +181,7 @@ static expected<ast::ExprP> parseBinOpRHS(int exprPrec, ast::ExprP lhs, TokIt& t
 /// expression
 ///   ::= primary binoprhs
 ///
-static expected<ast::ExprP> parseExpression(TokIt& tok_it) {
+expected<ast::ExprP> parseExpression(TokIt& tok_it) {
     auto lhs = parsePrimary(tok_it);
     if (!lhs) {
         return lhs;
@@ -175,7 +192,7 @@ static expected<ast::ExprP> parseExpression(TokIt& tok_it) {
 
 /// prototype
 ///   ::= id '(' id* ')'
-static expected<ast::Signature> parsePrototype(TokIt& tok_it) {
+expected<ast::Signature> parsePrototype(TokIt& tok_it) {
     if (!std::holds_alternative<lexer::Identifier>(*tok_it)) {
         return tl::make_unexpected(Err{"Expected function name in prototype"});
     }
@@ -228,7 +245,7 @@ static expected<ast::Signature> parsePrototype(TokIt& tok_it) {
 }
 
 /// definition ::= 'def' prototype expression
-static expected<ast::Function> parseDefinition(TokIt& tok_it) {
+expected<ast::Function> parseDefinition(TokIt& tok_it) {
     ++tok_it;  // eat def.
     auto proto = parsePrototype(tok_it);
     if (!proto) {
@@ -243,7 +260,7 @@ static expected<ast::Function> parseDefinition(TokIt& tok_it) {
 }
 
 /// toplevelexpr ::= expression
-static expected<ast::Function> parseTopLevelExpr(TokIt& tok_it) {
+expected<ast::Function> parseTopLevelExpr(TokIt& tok_it) {
     auto exp = parseExpression(tok_it);
     if (!exp) {
         return tl::unexpected(exp.error());
@@ -255,10 +272,11 @@ static expected<ast::Function> parseTopLevelExpr(TokIt& tok_it) {
 }
 
 /// external ::= 'extern' prototype
-static expected<ast::Signature> parseExtern(TokIt& tok_it) {
+expected<ast::Signature> parseExtern(TokIt& tok_it) {
     ++tok_it;  // eat extern.
     return parsePrototype(tok_it);
 }
+
 }  // namespace
 
 /// top ::= definition | external | expression | ';'

@@ -37,18 +37,18 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    std::cout << "-- Lexer --------" << std::endl;
     pom::lexer::Lexer::print(std::cout, tokens);
-
-    std::cout << "--------------" << std::endl;
+    std::cout << "-----------------" << std::endl << std::endl;
 
     auto top_level = pom::parser::parse(tokens);
     if (!top_level) {
-        std::cout << "Lexer error: " << top_level.error().m_desc << std::endl;
+        std::cout << "Parser error: " << top_level.error().m_desc << std::endl;
         return -1;
     }
+    std::cout << "-- Parser --------" << std::endl;
     pom::parser::print(std::cout, *top_level);
-
-    std::cout << "--------------" << std::endl;
+    std::cout << "------------------" << std::endl << std::endl;
 
     auto sematic_res = pom::semantic::analyze(*top_level);
     if (!sematic_res) {
@@ -56,18 +56,20 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    std::cout << "-- Semantic ------" << std::endl;
     pom::semantic::print(std::cout, *sematic_res);
+    std::cout << "------------------" << std::endl << std::endl;
 
-    std::cout << "--------------" << std::endl;
-
+    std::cout << "-- Code Gen ------" << std::endl;
     auto err = pol::codegen::codegen(*sematic_res, true);
+    std::cout << "------------------" << std::endl << std::endl;
+
     if (!err) {
         std::cout << "Error: " << err.error().m_desc << std::endl;
     }
-    std::cout << "Evaluated: " << *err << std::endl;
-
     std::cout << "====================" << std::endl;
-
+    std::cout << "Evaluated: " << *err << std::endl;
+    std::cout << "====================" << std::endl;
 
     return 0;
 }

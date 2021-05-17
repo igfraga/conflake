@@ -2,8 +2,9 @@
 #pragma once
 
 #include <cstdint>
-#include <variant>
 #include <iosfwd>
+#include <variant>
+#include <vector>
 
 namespace pom {
 
