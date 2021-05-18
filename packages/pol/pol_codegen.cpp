@@ -6,6 +6,7 @@
 #include <pol_basicoperators.h>
 #include <pol_basictypes.h>
 #include <pol_jit.h>
+#include <pol_llvm.h>
 #include <pom_basictypes.h>
 #include <pom_listtype.h>
 #include <iostream>
@@ -108,11 +109,11 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
     if (var.m_subscript) {
         auto sty = fo->second->subscriptedType(*var.m_subscript);
-        if(!sty) {
+        if (!sty) {
             return tl::make_unexpected(Err{"codegen got bad code"});
         }
         auto ty = basictypes::getType(program.m_context.get(), *sty);
-        if(!ty) {
+        if (!ty) {
             return tl::make_unexpected(Err{ty.error().m_desc});
         }
         auto index =
@@ -143,18 +144,21 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return tl::make_unexpected(Err{ty.error().m_desc});
     }
 
-    auto sz = llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, int(gened.size()), true));
-    auto alloca = program.m_builder->CreateAlloca(*ty, sz);
+    auto         int_ptr = llvm::IntegerType::get(*program.m_context, 64);
+    llvm::Value* sz1 =
+        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, gened.size(), false));
+
+    auto allocated = pol::createMalloc(program.m_builder.get(), int_ptr, *ty, sz1, nullptr, nullptr, "a");
 
     for (auto i = 0ull; i < gened.size(); i++) {
         auto index = llvm::ConstantInt::get(*program.m_context, llvm::APInt(32, int(i), true));
 
-        auto gep = program.m_builder->CreateGEP(alloca, index);
+        auto gep = program.m_builder->CreateGEP(allocated, index);
         program.m_builder->CreateStore(gened[i].m_value, gep);
     }
 
     auto pty = std::make_shared<pom::types::List>(gened[0].m_type);
-    return DecValue{alloca, pty};
+    return DecValue{allocated, pty};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,

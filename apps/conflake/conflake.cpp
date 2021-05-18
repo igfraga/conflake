@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
     app.add_argument("-f", "--file");
 
     try {
-        app.parse_args(argc, argv);
+      //  app.parse_args(argc, argv);
     } catch (const std::runtime_error& err) {
         std::cout << err.what() << std::endl;
         std::cout << app;
@@ -26,9 +26,9 @@ int main(int argc, char** argv) {
 
     pol::initLlvm();
 
-    auto path = std::filesystem::u8path(app.get<std::string>("--file"));
+    //auto path = std::filesystem::u8path(app.get<std::string>("--file"));
 
-    // auto path = std::filesystem::u8path("/home/ignacio/workspace/conflake/examples/test7.txt");
+    auto path = std::filesystem::u8path("/home/ignacio/workspace/conflake/examples/testX.txt");
 
     std::vector<pom::lexer::Token> tokens;
     auto                           reslex = pom::lexer::Lexer::lex(path, tokens);
