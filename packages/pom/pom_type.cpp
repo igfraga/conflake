@@ -2,4 +2,6 @@
 
 namespace pom {
 
+Type::~Type() {}
+
 }  // namespace pom

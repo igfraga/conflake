@@ -27,10 +27,9 @@ add_library(pom STATIC
 conflake_source_groups(pom)
 
 target_include_directories(pom PUBLIC .)
-target_compile_options(pom PRIVATE -Wall)
 
 target_link_libraries(pom PUBLIC CONAN_PKG::fmt tl::expected)
 
-target_compile_features(pom PRIVATE cxx_std_17)
+conflake_library_flags(pom)
 
 add_subdirectory(test)

@@ -70,7 +70,6 @@ Value* createMalloc(IRBuilderBase* builder, Type* IntPtrTy,
     PointerType* AllocPtrType = PointerType::getUnqual(AllocTy);
     CallInst*    MCall        = nullptr;
     Value* Result       = nullptr;
-    ArrayRef<OperandBundleDef> OpB;
     ArrayRef<Value*> args(&AllocSize, 1ull);
     MCall  = builder->CreateCall(MallocFunc, args, "malloccall");
     //MCall  = CallInst::Create(MallocFunc, AllocSize, OpB, "malloccall");

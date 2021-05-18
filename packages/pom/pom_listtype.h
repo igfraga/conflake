@@ -12,6 +12,8 @@ class List : public Type {
    public:
     List(TypeCSP ty) : m_contained_type(std::move(ty)) {}
 
+    virtual ~List() {}
+
     std::string description() const final;
 
     std::string mangled() const final;

@@ -21,7 +21,6 @@ add_library(pol STATIC
 conflake_source_groups(pol)
 
 target_include_directories(pol PUBLIC .)
-target_compile_options(pol PRIVATE -Wall)
 
 target_link_libraries(pol PUBLIC CONAN_PKG::fmt tl::expected pom)
 
@@ -43,6 +42,6 @@ llvm_map_components_to_libnames(llvm_libs
 
 target_link_libraries(pol PUBLIC ${llvm_libs})
 
-target_compile_features(pol PRIVATE cxx_std_17)
+conflake_library_flags(pol)
 
 add_subdirectory(test)

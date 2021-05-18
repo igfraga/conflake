@@ -8,6 +8,11 @@ macro(conflake_source_groups target)
     source_group("" FILES ${sources})
 endmacro()
 
+macro(conflake_library_flags target)
+    target_compile_options(${target} PRIVATE -Wall -Werror)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+endmacro()
+
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_define_targets()
 
