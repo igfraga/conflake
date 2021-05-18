@@ -1,7 +1,8 @@
 #pragma once
 
-#include <string>
 #include <pom_type.h>
+#include <optional>
+#include <string>
 
 namespace pom {
 
@@ -28,24 +29,13 @@ class BooleanType : public Type {
     std::string mangled() const { return "boolean"; }
 };
 
-inline TypeCSP real() { return std::make_shared<types::RealType>(); }
+inline TypeCSP real() { return std::make_shared<RealType>(); }
 
-inline TypeCSP integer() { return std::make_shared<types::IntegerType>(); }
+inline TypeCSP integer() { return std::make_shared<IntegerType>(); }
 
-inline TypeCSP boolean() { return std::make_shared<types::BooleanType>(); }
+inline TypeCSP boolean() { return std::make_shared<BooleanType>(); }
 
-inline TypeCSP basicTypeFromStr(std::string_view s) {
-    if(s == "real") {
-        return real();
-    }
-    else if(s == "integer") {
-        return integer();
-    }
-    else if(s == "boolean") {
-        return boolean();
-    }
-    return nullptr;
-}
+TypeCSP basicTypeFromStr(std::string_view s, const std::optional<std::string>& template_arg);
 
 }  // namespace types
 

@@ -4,8 +4,10 @@
 #include <fmt/format.h>
 
 #include <pol_basicoperators.h>
+#include <pol_basictypes.h>
 #include <pol_jit.h>
 #include <pom_basictypes.h>
+#include <pom_listtype.h>
 #include <iostream>
 
 #include "llvm/ADT/APFloat.h"
@@ -103,12 +105,56 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         pom::semantic::print(std::cout, context);
         return tl::make_unexpected(Err{fmt::format("Unknown variable name: {0}", var.m_name)});
     }
+
+    if (var.m_subscript) {
+        auto sty = fo->second->subscriptedType(*var.m_subscript);
+        if(!sty) {
+            return tl::make_unexpected(Err{"codegen got bad code"});
+        }
+        auto ty = basictypes::getType(program.m_context.get(), *sty);
+        if(!ty) {
+            return tl::make_unexpected(Err{ty.error().m_desc});
+        }
+        auto index =
+            llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, *var.m_subscript, true));
+
+        auto gep = program.m_builder->CreateInBoundsGEP(*ty, v, index);
+
+        auto load = program.m_builder->CreateLoad(*ty, gep);
+        return DecValue{load, sty};
+    }
+
     return DecValue{v, fo->second};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::ListExpr& e) {
-    return tl::make_unexpected(Err{"Not implemented"});
+                                    const pom::ast::ListExpr& li) {
+    std::vector<DecValue> gened;
+    for (auto& exp : li.m_expressions) {
+        auto lie = codegen(program, context, *exp);
+        if (!lie) {
+            return lie;
+        }
+        gened.push_back(std::move(*lie));
+    }
+
+    auto ty = basictypes::getType(program.m_context.get(), *gened[0].m_type);
+    if (!ty) {
+        return tl::make_unexpected(Err{ty.error().m_desc});
+    }
+
+    auto sz = llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, int(gened.size()), true));
+    auto alloca = program.m_builder->CreateAlloca(*ty, sz);
+
+    for (auto i = 0ull; i < gened.size(); i++) {
+        auto index = llvm::ConstantInt::get(*program.m_context, llvm::APInt(32, int(i), true));
+
+        auto gep = program.m_builder->CreateGEP(alloca, index);
+        program.m_builder->CreateStore(gened[i].m_value, gep);
+    }
+
+    auto pty = std::make_shared<pom::types::List>(gened[0].m_type);
+    return DecValue{alloca, pty};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
@@ -168,29 +214,18 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Signature& s) {
     // Make the function type:  double(double,double) etc.
 
-    auto toLlvm = [&](const pom::TypeCSP& tp) -> tl::expected<llvm::Type*, Err> {
-        if (tp->mangled() == "real") {
-            return llvm::Type::getDoubleTy(*program.m_context);
-        } else if (tp->mangled() == "integer") {
-            return llvm::Type::getInt64Ty(*program.m_context);
-        } else {
-            return tl::make_unexpected(
-                Err{fmt::format("type not supported: {0}", tp->description())});
-        }
-    };
-
     std::vector<llvm::Type*> llvm_args;
     for (auto& arg : s.m_args) {
-        auto lt = toLlvm(arg.first);
+        auto lt = basictypes::getType(program.m_context.get(), *arg.first);
         if (!lt) {
-            return tl::make_unexpected(lt.error());
+            return tl::make_unexpected(Err{lt.error().m_desc});
         }
         llvm_args.push_back(*lt);
     }
 
-    auto ret_type = toLlvm(s.m_return_type);
+    auto ret_type = basictypes::getType(program.m_context.get(), *s.m_return_type);
     if (!ret_type) {
-        return tl::make_unexpected(ret_type.error());
+        return tl::make_unexpected(Err{ret_type.error().m_desc});
     }
 
     llvm::FunctionType* func_type = llvm::FunctionType::get(*ret_type, llvm_args, false);

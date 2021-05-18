@@ -8,6 +8,8 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 add_library(pol STATIC
     pol_basicoperators.cpp
     pol_basicoperators.h
+    pol_basictypes.cpp
+    pol_basictypes.h
     pol_codegen.cpp
     pol_codegen.h
     pol_jit.cpp

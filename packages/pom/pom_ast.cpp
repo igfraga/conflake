@@ -13,7 +13,13 @@ struct Printer {
     void operator()(const ast::Literal& v) {
         std::visit([&](auto& w) { literals::print(m_ost, w); }, v);
     }
-    void operator()(const ast::Var& v) { m_ost << fmt::format("v/{0}", v.m_name); }
+    void operator()(const ast::Var& v) {
+        if (v.m_subscript) {
+            m_ost << fmt::format("v/{0}[{1}]", v.m_name, *v.m_subscript);
+        } else {
+            m_ost << fmt::format("v/{0}", v.m_name);
+        }
+    }
     void operator()(const ast::BinaryExpr& v) {
         m_ost << fmt::format("(be: {0} ", v.m_op);
         print(m_ost, *v.m_lhs);
@@ -48,8 +54,8 @@ void print(std::ostream& ost, const ast::Expr& e) {
 
 void print(std::ostream& ost, const ast::Signature& sig) {
     ost << sig.m_name << " <- ";
-    for (auto& [arg_type, arg_name] : sig.m_args) {
-        ost << arg_name << ", ";
+    for (auto& [arg_type, arg_template, arg_name] : sig.m_args) {
+        ost << fmt::format("{0}:{1}<{2}>, ", arg_name, arg_type, arg_template.value_or(""));
     }
 }
 

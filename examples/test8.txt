@@ -1,0 +1,8 @@
+
+def foo(list<real> x)
+    x[3]
+
+def mklist(real a)
+    [a a+1 a+2 a+3]
+
+foo(mklist(1))

@@ -1,4 +1,4 @@
-
+﻿
 #include <pom_parser.h>
 
 #include <fmt/format.h>
@@ -81,8 +81,25 @@ expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it) {
     }
     ++tok_it;
 
-    if (!isOpenParen(*tok_it)) {  // Simple variable ref.
-        return std::make_shared<ast::Expr>(ast::Var{ident->m_name});
+    if (!lexer::isOpenParen(*tok_it)) {
+        if (lexer::isOpenBracket(*tok_it)) {
+            // a[1]
+            ++tok_it;
+            if (!std::holds_alternative<literals::Real>(*tok_it)) {
+                return tl::make_unexpected(Err{"expected a number inside []"});
+            }
+            int64_t subscript = int64_t(std::get<literals::Real>(*tok_it).m_val);
+            ++tok_it;
+            if (!lexer::isCloseBracket(*tok_it)) {
+                return tl::make_unexpected(Err{"expected closing brackets"});
+            }
+            ++tok_it;
+            return std::make_shared<ast::Expr>(ast::Var{ident->m_name, subscript});
+        }
+        else {
+            // Simple variable ref.
+            return std::make_shared<ast::Expr>(ast::Var{ident->m_name, std::nullopt});
+        }
     }
 
     // Call.
@@ -205,7 +222,7 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it) {
     }
     ++tok_it;
 
-    std::vector<std::pair<std::string, std::string>> args;
+    std::vector<ast::Arg> args;
     while (1) {
         if (isCloseParen(*tok_it)) {
             ++tok_it;
@@ -219,13 +236,30 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it) {
         }
         ++tok_it;
 
+        std::optional<std::string> template_arg;
+        if (lexer::isOpenAngled(*tok_it)) {
+            // template parameter
+            ++tok_it;
+            auto template_ident = std::get_if<lexer::Identifier>(&(*tok_it));
+            if (!template_ident) {
+                return tl::make_unexpected(Err{fmt::format("Unexpected token in template: {0}",
+                                                           lexer::Lexer::toString(*tok_it))});
+            }
+            template_arg = template_ident->m_name;
+            ++tok_it;
+            if (!lexer::isCloseAngled(*tok_it)) {
+                return tl::make_unexpected(Err{"Expected '>' in prototype"});
+            }
+            ++tok_it;
+        }
+
         auto name_ident = std::get_if<lexer::Identifier>(&(*tok_it));
         if (!name_ident) {
             return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
                                                        lexer::Lexer::toString(*tok_it))});
         }
         ++tok_it;
-        args.emplace_back(type_ident->m_name, name_ident->m_name);
+        args.push_back(ast::Arg{type_ident->m_name, template_arg, name_ident->m_name});
     }
 
     std::optional<std::string> ret_type;
@@ -267,7 +301,7 @@ expected<ast::Function> parseTopLevelExpr(TokIt& tok_it) {
     }
 
     // Make an anonymous proto.
-    auto sig = ast::Signature{"__anon_expr", {}};
+    auto sig = ast::Signature{"__anon_expr", {}, {}};
     return ast::Function{std::move(sig), std::move(*exp)};
 }
 

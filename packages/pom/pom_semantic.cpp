@@ -38,7 +38,11 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, const Context& con
         return tl::make_unexpected(
             Err{fmt::format("Variable {0} not found in this context", var.m_name)});
     }
-    return found->second;
+    auto ty = found->second;
+    if(var.m_subscript) {
+        ty = ty->subscriptedType(*var.m_subscript);
+    }
+    return ty;
 }
 
 tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, const Context& context) {
@@ -110,14 +114,14 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) 
     Signature sem_sig;
     sem_sig.m_name = sig.m_name;
     for (auto& arg : sig.m_args) {
-        auto typ = types::basicTypeFromStr(arg.first);
+        auto typ = types::basicTypeFromStr(arg.m_type, arg.m_template);
         if (!typ) {
-            return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", arg.first)});
+            return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", arg.m_type)});
         }
-        sem_sig.m_args.push_back({typ, arg.second});
+        sem_sig.m_args.push_back({typ, arg.m_name});
     }
     if (sig.m_ret_type) {
-        sem_sig.m_return_type = types::basicTypeFromStr(*sig.m_ret_type);
+        sem_sig.m_return_type = types::basicTypeFromStr(*sig.m_ret_type, std::nullopt);
     }
     return sem_sig;
 }

@@ -18,7 +18,8 @@ using ExprP = std::shared_ptr<const Expr>;
 using Literal = std::variant<literals::Boolean, literals::Integer, literals::Real>;
 
 struct Var {
-    std::string m_name;
+    std::string            m_name;
+    std::optional<int64_t> m_subscript;
 };
 
 struct BinaryExpr {
@@ -36,10 +37,16 @@ struct ListExpr {
     std::vector<ExprP> m_expressions;
 };
 
+struct Arg {
+    std::string                m_type;
+    std::optional<std::string> m_template;
+    std::string                m_name;
+};
+
 struct Signature {
-    std::string                                      m_name;
-    std::vector<std::pair<std::string, std::string>> m_args;  // type, name
-    std::optional<std::string>                       m_ret_type;
+    std::string                m_name;
+    std::vector<Arg>           m_args;
+    std::optional<std::string> m_ret_type;
 };
 
 struct Function {
