@@ -6,8 +6,6 @@ add_library(pom STATIC
     pom_ast.h
     pom_basictypes.cpp
     pom_basictypes.h
-    pom_entry.cpp
-    pom_entry.h
     pom_functiontype.cpp
     pom_functiontype.h
     pom_lexer.cpp
