@@ -21,7 +21,7 @@ class Jit {
 
     Jit();
 
-    llvm::TargetMachine& getTargetMachine() { return *TM; }
+    llvm::TargetMachine& getTargetMachine() { return *m_tm; }
 
     ModuleKey addModule(std::unique_ptr<llvm::Module> M);
 
@@ -34,13 +34,13 @@ class Jit {
 
     llvm::JITSymbol findMangledSymbol(const std::string& Name);
 
-    llvm::orc::ExecutionSession                ES;
-    std::shared_ptr<llvm::orc::SymbolResolver> Resolver;
-    std::unique_ptr<llvm::TargetMachine>       TM;
-    const llvm::DataLayout                     DL;
-    ObjLayerT                                  ObjectLayer;
-    CompileLayerT                              CompileLayer;
-    std::vector<ModuleKey>                     ModuleKeys;
+    llvm::orc::ExecutionSession                m_es;
+    std::shared_ptr<llvm::orc::SymbolResolver> m_resolver;
+    std::unique_ptr<llvm::TargetMachine>       m_tm;
+    const llvm::DataLayout                     m_dl;
+    ObjLayerT                                  m_object_layer;
+    CompileLayerT                              m_compile_layer;
+    std::vector<ModuleKey>                     m_module_keys;
 };
 
 }  // namespace pol

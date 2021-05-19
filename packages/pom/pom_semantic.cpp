@@ -39,7 +39,7 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, const Context& con
             Err{fmt::format("Variable {0} not found in this context", var.m_name)});
     }
     auto ty = found->second;
-    if(var.m_subscript) {
+    if (var.m_subscript) {
         ty = ty->subscriptedType(*var.m_subscript);
     }
     return ty;

@@ -25,71 +25,70 @@ void initLlvm() {
     llvm::InitializeNativeTargetAsmParser();
 }
 
-bool IsConstantOne(Value* val) {
+bool isConstantOne(Value* val) {
     assert(val && "IsConstantOne does not work with nullptr val");
     const ConstantInt* CVal = dyn_cast<ConstantInt>(val);
     return CVal && CVal->isOne();
 }
 
-Value* createMalloc(IRBuilderBase* builder, Type* IntPtrTy,
-                          Type* AllocTy, Value* AllocSize, Value* ArraySize,
-                          Function* MallocF, const Twine& Name) {
+Value* createMalloc(IRBuilderBase* builder, Type* int_type, Type* alloc_ty, Value* alloc_size,
+                    Value* array_size, Function* malloc_fun, const Twine& name) {
     assert(builder);
     // malloc(type) becomes:
     //       bitcast (i8* malloc(typeSize)) to type*
     // malloc(type, arraySize) becomes:
     //       bitcast (i8* malloc(typeSize*arraySize)) to type*
-    if (!ArraySize)
-        ArraySize = ConstantInt::get(IntPtrTy, 1);
-    else if (ArraySize->getType() != IntPtrTy) {
-            //ArraySize = CastInst::CreateIntegerCast(ArraySize, IntPtrTy, false, "", InsertAtEnd);
+    if (!array_size) {
+        array_size = ConstantInt::get(int_type, 1);
+    } else if (array_size->getType() != int_type) {
+        // ArraySize = CastInst::CreateIntegerCast(ArraySize, IntPtrTy, false, "", InsertAtEnd);
     }
 
-    if (!IsConstantOne(ArraySize)) {
-        if (IsConstantOne(AllocSize)) {
-            AllocSize = ArraySize;  // Operand * 1 = Operand
-        } else if (Constant* CO = dyn_cast<Constant>(ArraySize)) {
-            Constant* Scale = ConstantExpr::getIntegerCast(CO, IntPtrTy, false /*ZExt*/);
+    if (!isConstantOne(array_size)) {
+        if (isConstantOne(alloc_size)) {
+            alloc_size = array_size;  // Operand * 1 = Operand
+        } else if (Constant* CO = dyn_cast<Constant>(array_size)) {
+            Constant* Scale = ConstantExpr::getIntegerCast(CO, int_type, false /*ZExt*/);
             // Malloc arg is constant product of type size and array size
-            AllocSize = ConstantExpr::getMul(Scale, cast<Constant>(AllocSize));
+            alloc_size = ConstantExpr::getMul(Scale, cast<Constant>(alloc_size));
         } else {
             // Multiply type size by the array size...
-            AllocSize = builder->CreateMul(ArraySize, AllocSize, "mallocsize");
+            alloc_size = builder->CreateMul(array_size, alloc_size, "mallocsize");
         }
     }
 
-    assert(AllocSize->getType() == IntPtrTy && "malloc arg is wrong size");
+    assert(alloc_size->getType() == int_type && "malloc arg is wrong size");
     // Create the call to Malloc.
-    Module*        M          = builder->GetInsertBlock()->getModule();
-    Type*          BPTy       = Type::getInt8PtrTy(builder->getContext());
-    FunctionCallee MallocFunc = MallocF;
-    if (!MallocFunc){
+    Module*        mod         = builder->GetInsertBlock()->getModule();
+    Type*          ptr_type    = Type::getInt8PtrTy(builder->getContext());
+    FunctionCallee malloc_func = malloc_fun;
+    if (!malloc_func) {
         // prototype malloc as "void *malloc(size_t)"
-        MallocFunc = M->getOrInsertFunction("malloc", BPTy, IntPtrTy);
+        malloc_func = mod->getOrInsertFunction("malloc", ptr_type, int_type);
     }
-    PointerType* AllocPtrType = PointerType::getUnqual(AllocTy);
-    CallInst*    MCall        = nullptr;
-    Value* Result       = nullptr;
-    ArrayRef<Value*> args(&AllocSize, 1ull);
-    MCall  = builder->CreateCall(MallocFunc, args, "malloccall");
-    //MCall  = CallInst::Create(MallocFunc, AllocSize, OpB, "malloccall");
-    Result = MCall;
-    if (Result->getType() != AllocPtrType) {
-        //InsertAtEnd->getInstList().push_back(MCall);
+    PointerType*     alloc_ptr_ty = PointerType::getUnqual(alloc_ty);
+    CallInst*        mcall        = nullptr;
+    Value*           result       = nullptr;
+    ArrayRef<Value*> args(&alloc_size, 1ull);
+    mcall = builder->CreateCall(malloc_func, args, "malloccall");
+    // MCall  = CallInst::Create(MallocFunc, AllocSize, OpB, "malloccall");
+    result = mcall;
+    if (result->getType() != alloc_ptr_ty) {
+        // InsertAtEnd->getInstList().push_back(MCall);
         // Create a cast instruction to convert to the right type...
-        //Result = new BitCastInst(MCall, AllocPtrType, Name);
-        Result = builder->CreateBitCast(MCall, AllocPtrType, Name);
+        // Result = new BitCastInst(MCall, AllocPtrType, Name);
+        result = builder->CreateBitCast(mcall, alloc_ptr_ty, name);
     }
-    MCall->setTailCall();
-    if (Function* F = dyn_cast<Function>(MallocFunc.getCallee())) {
-        MCall->setCallingConv(F->getCallingConv());
-        if (!F->returnDoesNotAlias()) {
-            F->setReturnDoesNotAlias();
+    mcall->setTailCall();
+    if (Function* fun = dyn_cast<Function>(malloc_func.getCallee())) {
+        mcall->setCallingConv(fun->getCallingConv());
+        if (!fun->returnDoesNotAlias()) {
+            fun->setReturnDoesNotAlias();
         }
     }
-    assert(!MCall->getType()->isVoidTy() && "Malloc has void return type");
+    assert(!mcall->getType()->isVoidTy() && "Malloc has void return type");
 
-    return Result;
+    return result;
 }
 
 }  // namespace pol

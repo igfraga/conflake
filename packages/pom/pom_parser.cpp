@@ -95,8 +95,7 @@ expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it) {
             }
             ++tok_it;
             return std::make_shared<ast::Expr>(ast::Var{ident->m_name, subscript});
-        }
-        else {
+        } else {
             // Simple variable ref.
             return std::make_shared<ast::Expr>(ast::Var{ident->m_name, std::nullopt});
         }

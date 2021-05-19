@@ -11,42 +11,43 @@
 namespace pol {
 
 Jit::Jit()
-    : Resolver(llvm::orc::createLegacyLookupResolver(
-          ES, [this](llvm::StringRef Name) { return findMangledSymbol(std::string(Name)); },
+    : m_resolver(llvm::orc::createLegacyLookupResolver(
+          m_es, [this](llvm::StringRef Name) { return findMangledSymbol(std::string(Name)); },
           [](llvm::Error Err) { cantFail(std::move(Err), "lookupFlags failed"); })),
-      TM(llvm::EngineBuilder().selectTarget()),
-      DL(TM->createDataLayout()),
-      ObjectLayer(
-          llvm::AcknowledgeORCv1Deprecation, ES,
-          [this](ModuleKey) {
-              return ObjLayerT::Resources{std::make_shared<llvm::SectionMemoryManager>(), Resolver};
-          }),
-      CompileLayer(llvm::AcknowledgeORCv1Deprecation, ObjectLayer, llvm::orc::SimpleCompiler(*TM)) {
+      m_tm(llvm::EngineBuilder().selectTarget()),
+      m_dl(m_tm->createDataLayout()),
+      m_object_layer(llvm::AcknowledgeORCv1Deprecation, m_es,
+                     [this](ModuleKey) {
+                         return ObjLayerT::Resources{std::make_shared<llvm::SectionMemoryManager>(),
+                                                     m_resolver};
+                     }),
+      m_compile_layer(llvm::AcknowledgeORCv1Deprecation, m_object_layer,
+                      llvm::orc::SimpleCompiler(*m_tm)) {
     llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
-Jit::ModuleKey Jit::addModule(std::unique_ptr<llvm::Module> M) {
-    auto K = ES.allocateVModule();
-    cantFail(CompileLayer.addModule(K, std::move(M)));
-    ModuleKeys.push_back(K);
-    return K;
+Jit::ModuleKey Jit::addModule(std::unique_ptr<llvm::Module> mod) {
+    auto key = m_es.allocateVModule();
+    cantFail(m_compile_layer.addModule(key, std::move(mod)));
+    m_module_keys.push_back(key);
+    return key;
 }
 
-void Jit::removeModule(ModuleKey K) {
-    ModuleKeys.erase(llvm::find(ModuleKeys, K));
-    cantFail(CompileLayer.removeModule(K));
+void Jit::removeModule(ModuleKey key) {
+    m_module_keys.erase(llvm::find(m_module_keys, key));
+    cantFail(m_compile_layer.removeModule(key));
 }
 
-std::string Jit::mangle(const std::string& Name) {
-    std::string MangledName;
+std::string Jit::mangle(const std::string& name) {
+    std::string mangled_name;
     {
-        llvm::raw_string_ostream MangledNameStream(MangledName);
-        llvm::Mangler::getNameWithPrefix(MangledNameStream, Name, DL);
+        llvm::raw_string_ostream mangled_name_stream(mangled_name);
+        llvm::Mangler::getNameWithPrefix(mangled_name_stream, name, m_dl);
     }
-    return MangledName;
+    return mangled_name;
 }
 
-llvm::JITSymbol Jit::findMangledSymbol(const std::string& Name) {
+llvm::JITSymbol Jit::findMangledSymbol(const std::string& name) {
 #ifdef _WIN32
     // The symbol lookup of ObjectLinkingLayer uses the SymbolRef::SF_Exported
     // flag to decide whether a symbol will be visible or not, when we call
@@ -55,28 +56,31 @@ llvm::JITSymbol Jit::findMangledSymbol(const std::string& Name) {
     // But for Windows COFF objects, this flag is currently never set.
     // For a potential solution see: https://reviews.llvm.org/rL258665
     // For now, we allow non-exported symbols on Windows as a workaround.
-    const bool ExportedSymbolsOnly = false;
+    const bool exported_symbols_only = false;
 #else
-    const bool ExportedSymbolsOnly = true;
+    const bool exported_symbols_only = true;
 #endif
 
     // Search modules in reverse order: from last added to first added.
     // This is the opposite of the usual search order for dlsym, but makes more
     // sense in a REPL where we want to bind to the newest available definition.
-    for (auto H : llvm::make_range(ModuleKeys.rbegin(), ModuleKeys.rend()))
-        if (auto Sym = CompileLayer.findSymbolIn(H, Name, ExportedSymbolsOnly)) return Sym;
+    for (auto h : llvm::make_range(m_module_keys.rbegin(), m_module_keys.rend()))
+        if (auto sym = m_compile_layer.findSymbolIn(h, name, exported_symbols_only)) {
+            return sym;
+        }
 
     // If we can't find the symbol in the JIT, try looking in the host process.
-    if (auto SymAddr = llvm::RTDyldMemoryManager::getSymbolAddressInProcess(Name))
-        return llvm::JITSymbol(SymAddr, llvm::JITSymbolFlags::Exported);
+    if (auto sym_addr = llvm::RTDyldMemoryManager::getSymbolAddressInProcess(name)) {
+        return llvm::JITSymbol(sym_addr, llvm::JITSymbolFlags::Exported);
+    }
 
 #ifdef _WIN32
     // For Windows retry without "_" at beginning, as RTDyldMemoryManager uses
     // GetProcAddress and standard libraries like msvcrt.dll use names
     // with and without "_" (for example "_itoa" but "sin").
-    if (Name.length() > 2 && Name[0] == '_')
-        if (auto SymAddr = RTDyldMemoryManager::getSymbolAddressInProcess(Name.substr(1)))
-            return JITSymbol(SymAddr, JITSymbolFlags::Exported);
+    if (name.length() > 2 && name[0] == '_')
+        if (auto sym_addr = RTDyldMemoryManager::getSymbolAddressInProcess(name.substr(1)))
+            return JITSymbol(sym_addr, JITSymbolFlags::Exported);
 #endif
 
     return nullptr;

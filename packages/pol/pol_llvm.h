@@ -13,8 +13,8 @@ namespace pol {
 
 void initLlvm();
 
-llvm::Value* createMalloc(llvm::IRBuilderBase* builder, llvm::Type* IntPtrTy, llvm::Type* AllocTy,
-                          llvm::Value* AllocSize, llvm::Value* ArraySize, llvm::Function* MallocF,
-                          const llvm::Twine& Name);
+llvm::Value* createMalloc(llvm::IRBuilderBase* builder, llvm::Type* int_type, llvm::Type* alloc_type,
+                          llvm::Value* alloc_size, llvm::Value* array_size, llvm::Function* malloc_fun,
+                          const llvm::Twine& name);
 
 }  // namespace pol
