@@ -37,16 +37,22 @@ struct ListExpr {
     std::vector<ExprP> m_expressions;
 };
 
+struct TypeDesc {
+    std::string                                  m_name;
+    std::vector<std::shared_ptr<const TypeDesc>> m_template_args;
+};
+
+using TypeDescCSP = std::shared_ptr<const TypeDesc>;
+
 struct Arg {
-    std::string                m_type;
-    std::optional<std::string> m_template;
-    std::string                m_name;
+    TypeDescCSP m_type;
+    std::string m_name;
 };
 
 struct Signature {
-    std::string                m_name;
-    std::vector<Arg>           m_args;
-    std::optional<std::string> m_ret_type;
+    std::string      m_name;
+    std::vector<Arg> m_args;
+    TypeDescCSP      m_ret_type;
 };
 
 struct Function {

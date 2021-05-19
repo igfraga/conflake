@@ -206,6 +206,43 @@ expected<ast::ExprP> parseExpression(TokIt& tok_it) {
     return parseBinOpRHS(0, std::move(*lhs), tok_it);
 }
 
+expected<ast::TypeDescCSP> parseType(TokIt& tok_it) {
+    auto type_ident = std::get_if<lexer::Identifier>(&(*tok_it));
+    if (!type_ident) {
+        return tl::make_unexpected(
+            Err{fmt::format("Unexpected token in type: {0}", lexer::Lexer::toString(*tok_it))});
+    }
+    ++tok_it;
+
+    std::vector<ast::TypeDescCSP> template_args;
+    if (lexer::isOpenAngled(*tok_it)) {
+        ++tok_it;
+
+        while (1) {
+            // template parameter
+            auto tt = parseType(tok_it);
+            if (!tt) {
+                return tt;
+            }
+            template_args.push_back(std::move(*tt));
+
+            if (lexer::isCloseAngled(*tok_it)) {
+                ++tok_it;
+                break;
+            }
+
+            if (!lexer::isOp(*tok_it, ',')) {
+                return tl::make_unexpected(Err{fmt::format("Unexpected token in template: {0}",
+                                                           lexer::Lexer::toString(*tok_it))});
+            }
+            ++tok_it;
+        }
+    }
+
+    return std::make_shared<ast::TypeDesc>(
+        ast::TypeDesc{type_ident->m_name, std::move(template_args)});
+}
+
 /// prototype
 ///   ::= id '(' id* ')'
 expected<ast::Signature> parsePrototype(TokIt& tok_it) {
@@ -228,28 +265,9 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it) {
             break;
         }
 
-        auto type_ident = std::get_if<lexer::Identifier>(&(*tok_it));
-        if (!type_ident) {
-            return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
-                                                       lexer::Lexer::toString(*tok_it))});
-        }
-        ++tok_it;
-
-        std::optional<std::string> template_arg;
-        if (lexer::isOpenAngled(*tok_it)) {
-            // template parameter
-            ++tok_it;
-            auto template_ident = std::get_if<lexer::Identifier>(&(*tok_it));
-            if (!template_ident) {
-                return tl::make_unexpected(Err{fmt::format("Unexpected token in template: {0}",
-                                                           lexer::Lexer::toString(*tok_it))});
-            }
-            template_arg = template_ident->m_name;
-            ++tok_it;
-            if (!lexer::isCloseAngled(*tok_it)) {
-                return tl::make_unexpected(Err{"Expected '>' in prototype"});
-            }
-            ++tok_it;
+        auto type = parseType(tok_it);
+        if (!type) {
+            return tl::make_unexpected(type.error());
         }
 
         auto name_ident = std::get_if<lexer::Identifier>(&(*tok_it));
@@ -258,23 +276,22 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it) {
                                                        lexer::Lexer::toString(*tok_it))});
         }
         ++tok_it;
-        args.push_back(ast::Arg{type_ident->m_name, template_arg, name_ident->m_name});
+        args.push_back(ast::Arg{std::move(*type), name_ident->m_name});
     }
 
-    std::optional<std::string> ret_type;
+    ast::TypeDescCSP opt_ret_type;
     if (isOp(*tok_it, ':')) {
         ++tok_it;
 
-        auto ret_type_ident = std::get_if<lexer::Identifier>(&(*tok_it));
-        if (!ret_type_ident) {
+        auto ret_type = parseType(tok_it);
+        if (!ret_type) {
             return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
                                                        lexer::Lexer::toString(*tok_it))});
         }
-        ++tok_it;
-        ret_type = ret_type_ident->m_name;
+        opt_ret_type = std::move(*ret_type);
     }
 
-    return ast::Signature{fn_name, std::move(args), std::move(ret_type)};
+    return ast::Signature{fn_name, std::move(args), std::move(opt_ret_type)};
 }
 
 /// definition ::= 'def' prototype expression

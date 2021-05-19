@@ -52,10 +52,21 @@ void print(std::ostream& ost, const ast::Expr& e) {
     std::visit(p, e.m_val);
 }
 
+void print(std::ostream& ost, const ast::TypeDesc& ty) {
+    ost << ty.m_name << "<";
+    for(auto& tt : ty.m_template_args) {
+        print(ost, *tt);
+        ost << ",";
+    }
+    ost << ">";
+}
+
 void print(std::ostream& ost, const ast::Signature& sig) {
     ost << sig.m_name << " <- ";
-    for (auto& [arg_type, arg_template, arg_name] : sig.m_args) {
-        ost << fmt::format("{0}:{1}<{2}>, ", arg_name, arg_type, arg_template.value_or(""));
+    for (auto& [arg_type, arg_name] : sig.m_args) {
+        ost << arg_name << ":";
+        print(ost, *arg_type);
+        ost << ",";
     }
 }
 

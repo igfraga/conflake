@@ -6,6 +6,7 @@
 
 #include <pom_basictypes.h>
 #include <pom_functiontype.h>
+#include <pom_typebuilder.h>
 #include <pom_listtype.h>
 
 #include <cassert>
@@ -114,14 +115,14 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) 
     Signature sem_sig;
     sem_sig.m_name = sig.m_name;
     for (auto& arg : sig.m_args) {
-        auto typ = types::basicTypeFromStr(arg.m_type, arg.m_template);
+        auto typ = types::build(*arg.m_type);
         if (!typ) {
-            return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", arg.m_type)});
+            return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", arg.m_type->m_name)});
         }
         sem_sig.m_args.push_back({typ, arg.m_name});
     }
     if (sig.m_ret_type) {
-        sem_sig.m_return_type = types::basicTypeFromStr(*sig.m_ret_type, std::nullopt);
+        sem_sig.m_return_type = types::build(*sig.m_ret_type);
     }
     return sem_sig;
 }

@@ -35,8 +35,6 @@ inline TypeCSP integer() { return std::make_shared<IntegerType>(); }
 
 inline TypeCSP boolean() { return std::make_shared<BooleanType>(); }
 
-TypeCSP basicTypeFromStr(std::string_view s, const std::optional<std::string>& template_arg);
-
 }  // namespace types
 
 }  // namespace pom

@@ -20,6 +20,8 @@ add_library(pom STATIC
     pom_semantic.h
     pom_type.cpp
     pom_type.h
+    pom_typebuilder.cpp
+    pom_typebuilder.h
 )
 
 conflake_source_groups(pom)
