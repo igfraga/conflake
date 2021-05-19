@@ -42,9 +42,9 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, const Context& c
 
 tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level);
 
-void print(std::ostream& ost, const TopLevel& top_level);
+std::ostream& print(std::ostream& ost, const TopLevel& top_level);
 
-void print(std::ostream& ost, const Context& top_level);
+std::ostream& operator<<(std::ostream& ost, const Context& top_level);
 
 }  // namespace semantic
 

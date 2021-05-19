@@ -149,7 +149,7 @@ expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
         return std::make_unique<ast::Expr>(expr);
     }
     return tl::make_unexpected(Err{fmt::format("unknown token when expecting an expression: {0}",
-                                               lexer::Lexer::toString(*tok_it))});
+                                               lexer::toString(*tok_it))});
 }
 
 /// binoprhs
@@ -210,7 +210,7 @@ expected<ast::TypeDescCSP> parseType(TokIt& tok_it) {
     auto type_ident = std::get_if<lexer::Identifier>(&(*tok_it));
     if (!type_ident) {
         return tl::make_unexpected(
-            Err{fmt::format("Unexpected token in type: {0}", lexer::Lexer::toString(*tok_it))});
+            Err{fmt::format("Unexpected token in type: {0}", lexer::toString(*tok_it))});
     }
     ++tok_it;
 
@@ -233,7 +233,7 @@ expected<ast::TypeDescCSP> parseType(TokIt& tok_it) {
 
             if (!lexer::isOp(*tok_it, ',')) {
                 return tl::make_unexpected(Err{fmt::format("Unexpected token in template: {0}",
-                                                           lexer::Lexer::toString(*tok_it))});
+                                                           lexer::toString(*tok_it))});
             }
             ++tok_it;
         }
@@ -273,7 +273,7 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it) {
         auto name_ident = std::get_if<lexer::Identifier>(&(*tok_it));
         if (!name_ident) {
             return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
-                                                       lexer::Lexer::toString(*tok_it))});
+                                                       lexer::toString(*tok_it))});
         }
         ++tok_it;
         args.push_back(ast::Arg{std::move(*type), name_ident->m_name});
@@ -286,7 +286,7 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it) {
         auto ret_type = parseType(tok_it);
         if (!ret_type) {
             return tl::make_unexpected(Err{fmt::format("Unexpected token in prototype: {0}",
-                                                       lexer::Lexer::toString(*tok_it))});
+                                                       lexer::toString(*tok_it))});
         }
         opt_ret_type = std::move(*ret_type);
     }
@@ -365,29 +365,19 @@ expected<TopLevel> parse(const std::vector<lexer::Token>& tokens) {
     return top_level;
 }
 
-void printTlu(std::ostream& ost, const TopLevelUnit& u) {
+std::ostream& print(std::ostream& ost, const TopLevelUnit& u) {
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Signature>) {
-                ost << "extern: ";
-                ast::print(ost, v);
-                ost << "\n";
+                ost << "extern: " << v;
             } else if constexpr (std::is_same_v<T, ast::Function>) {
-                ost << "func: ";
-                ast::print(ost, v.m_sig);
-                ost << ": ";
-                ast::print(ost, *v.m_code);
-                ost << "\n";
+                ost << "func: " << v.m_sig << ": ";
+                ost << *v.m_code;
             }
         },
         u);
-}
-
-void print(std::ostream& ost, const TopLevel& top_level) {
-    for (auto& e : top_level) {
-        printTlu(ost, e);
-    }
+    return ost;
 }
 
 }  // namespace parser

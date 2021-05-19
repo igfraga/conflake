@@ -7,19 +7,22 @@ namespace pom {
 
 namespace literals {
 
-void print(std::ostream& ost, const Real& v)
+std::ostream& operator<<(std::ostream& ost, const Real& v)
 {
     ost << "d" << v.m_val;
+    return ost;
 }
 
-void print(std::ostream& ost, const Integer& v)
+std::ostream& operator<<(std::ostream& ost, const Integer& v)
 {
     ost << "i" << v.m_val;
+    return ost;
 }
 
-void print(std::ostream& ost, const Boolean& v)
+std::ostream& operator<<(std::ostream& ost, const Boolean& v)
 {
     ost << "b" << (v.m_val ? 1 : 0);
+    return ost;
 }
 
 }  // namespace literals

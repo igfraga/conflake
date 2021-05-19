@@ -23,7 +23,7 @@ using TopLevel     = std::vector<TopLevelUnit>;
 
 tl::expected<TopLevel, Err> parse(const std::vector<lexer::Token>& tokens);
 
-void print(std::ostream& ost, const TopLevel& top_level);
+std::ostream& print(std::ostream& ost, const TopLevelUnit& u);
 
 }  // namespace parser
 

@@ -11,13 +11,25 @@
 
 #include <argparse.hpp>
 
+void print(std::ostream& ost, const std::vector<pom::lexer::Token>& tokens) {
+    for (auto& tok : tokens) {
+        ost << tok << "\n";
+    }
+}
+
+void print(std::ostream& ost, const pom::parser::TopLevel& top_level) {
+    for (auto& e : top_level) {
+        pom::parser::print(ost, e) << "\n";
+    }
+}
+
 int main(int argc, char** argv) {
     argparse::ArgumentParser app{"App description"};
 
     app.add_argument("-f", "--file");
 
     try {
-      //  app.parse_args(argc, argv);
+      app.parse_args(argc, argv);
     } catch (const std::runtime_error& err) {
         std::cout << err.what() << std::endl;
         std::cout << app;
@@ -26,19 +38,19 @@ int main(int argc, char** argv) {
 
     pol::initLlvm();
 
-    //auto path = std::filesystem::u8path(app.get<std::string>("--file"));
+    auto path = std::filesystem::u8path(app.get<std::string>("--file"));
 
-    auto path = std::filesystem::u8path("/home/ignacio/workspace/conflake/examples/testX.txt");
+    //auto path = std::filesystem::u8path("/home/ignacio/workspace/conflake/examples/testX.txt");
 
     std::vector<pom::lexer::Token> tokens;
-    auto                           reslex = pom::lexer::Lexer::lex(path, tokens);
+    auto                           reslex = pom::lexer::lex(path, tokens);
     if (!reslex) {
         std::cout << "Lexer error: " << reslex.error().m_desc << std::endl;
         return -1;
     }
 
     std::cout << "-- Lexer --------" << std::endl;
-    pom::lexer::Lexer::print(std::cout, tokens);
+    print(std::cout, tokens);
     std::cout << "-----------------" << std::endl << std::endl;
 
     auto top_level = pom::parser::parse(tokens);
@@ -47,7 +59,7 @@ int main(int argc, char** argv) {
         return -1;
     }
     std::cout << "-- Parser --------" << std::endl;
-    pom::parser::print(std::cout, *top_level);
+    print(std::cout, *top_level);
     std::cout << "------------------" << std::endl << std::endl;
 
     auto sematic_res = pom::semantic::analyze(*top_level);

@@ -36,7 +36,7 @@ TEST_CASE("Some parser test", "[parser]") {
 
     for (auto& [path, expected_size] : ppp) {
         std::vector<Token> tokens;
-        REQUIRE(Lexer::lex(path, tokens));
+        REQUIRE(lex(path, tokens));
 
         auto res = pom::parser::parse(tokens);
         REQUIRE(res);

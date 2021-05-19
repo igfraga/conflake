@@ -29,7 +29,7 @@ TEST_CASE("Test simple lexer cases", "[lexer][foo]") {
     for (auto& [str, expected] : ppp) {
         std::stringstream ss(str);
         std::vector<Token> tokens;
-        REQUIRE(Lexer::lex(ss, tokens));
+        REQUIRE(lex(ss, tokens));
         REQUIRE(expected == tokens);
     }
 
@@ -74,7 +74,7 @@ TEST_CASE("Test lexer on files", "[lexer]") {
 
     for (auto& [path, expected] : ppp) {
         std::vector<Token> tokens;
-        REQUIRE(Lexer::lex(path, tokens));
+        REQUIRE(lex(path, tokens));
         REQUIRE(expected == tokens);
     }
 }

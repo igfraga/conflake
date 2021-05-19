@@ -28,11 +28,11 @@ struct Boolean {
     bool operator==(const Boolean& other) const { return other.m_val == m_val; }
 };
 
-void print(std::ostream& ost, const Real& v);
+std::ostream& operator<<(std::ostream& ost, const Real& v);
 
-void print(std::ostream& ost, const Integer& v);
+std::ostream& operator<<(std::ostream& ost, const Integer& v);
 
-void print(std::ostream& ost, const Boolean& v);
+std::ostream& operator<<(std::ostream& ost, const Boolean& v);
 
 }  // namespace literals
 

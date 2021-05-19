@@ -70,9 +70,12 @@ struct Expr {
     std::variant<Literal, Var, ListExpr, BinaryExpr, Call> m_val;
 };
 
-void print(std::ostream& ost, const ast::Expr& e);
 
-void print(std::ostream& ost, const ast::Signature& e);
+std::ostream& operator<<(std::ostream& os, const TypeDesc& value);
+
+std::ostream& operator<<(std::ostream& os, const Expr& value);
+
+std::ostream& operator<<(std::ostream& os, const Signature& value);
 
 }  // namespace ast
 

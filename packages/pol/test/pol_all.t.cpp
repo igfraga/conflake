@@ -47,7 +47,7 @@ TEST_CASE("Whole pipeline test", "[whole][jit]") {
     for (auto& [path, expected_res] : ppp) {
 
         std::vector<pom::lexer::Token> tokens;
-        auto                           reslex = pom::lexer::Lexer::lex(path, tokens);
+        auto                           reslex = pom::lexer::lex(path, tokens);
         REQUIRE(reslex);
 
         auto top_level = pom::parser::parse(tokens);

@@ -103,7 +103,6 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     }
     auto fo = context.m_variables.find(var.m_name);
     if (fo == context.m_variables.end()) {
-        pom::semantic::print(std::cout, context);
         return tl::make_unexpected(Err{fmt::format("Unknown variable name: {0}", var.m_name)});
     }
 

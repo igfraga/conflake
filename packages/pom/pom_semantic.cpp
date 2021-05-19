@@ -2,6 +2,7 @@
 #include <pom_semantic.h>
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 #include <map>
 
 #include <pom_basictypes.h>
@@ -117,7 +118,7 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) 
     for (auto& arg : sig.m_args) {
         auto typ = types::build(*arg.m_type);
         if (!typ) {
-            return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", arg.m_type->m_name)});
+            return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", *arg.m_type)});
         }
         sem_sig.m_args.push_back({typ, arg.m_name});
     }
@@ -202,47 +203,46 @@ tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
     return semantic_top_level;
 }
 
-void print(std::ostream& ost, const Signature& sig) {
+std::ostream& operator<<(std::ostream& ost, const Signature& sig) {
     ost << sig.m_name << " <- ";
     for (auto& [arg_type, arg_name] : sig.m_args) {
         ost << arg_name << ", ";
     }
+    return ost;
 }
 
-void printTlu(std::ostream& ost, const TopLevelUnit& u) {
+std::ostream& print(std::ostream& ost, const TopLevelUnit& u) {
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Signature>) {
-                ost << "extern: ";
-                ast::print(ost, v);
+                ost << "extern: " << v;
                 ost << "->" << v.type()->returnType()->description();
-                ost << "\n";
             } else if constexpr (std::is_same_v<T, Function>) {
-                ost << "func: ";
-                print(ost, v.m_sig);
+                ost << "func: " << v.m_sig;
                 ost << "->" << v.type()->returnType()->description();
-                ost << ": ";
-                ast::print(ost, *v.m_code);
-                ost << "\n";
+                ost << ": " << *v.m_code;
             }
         },
         u);
+    return ost;
 }
 
-void print(std::ostream& ost, const TopLevel& top_level) {
+std::ostream& print(std::ostream& ost, const TopLevel& top_level) {
     for (auto& e : top_level) {
-        printTlu(ost, e);
+        print(ost, e) << "\n";
     }
+    return ost;
 }
 
-void print(std::ostream& ost, const Context& context) {
+std::ostream& operator<<(std::ostream& ost, const Context& context) {
     ost << "=========== Context ==========" << std::endl;
     ost << "Variables::" << std::endl;
     for (auto& v : context.m_variables) {
         ost << v.first << ": " << v.second->description() << std::endl;
     }
     ost << "===========---------==========" << std::endl;
+    return ost;
 }
 
 }  // namespace semantic

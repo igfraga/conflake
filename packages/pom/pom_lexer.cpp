@@ -85,7 +85,7 @@ inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar) {
     return tok;
 }
 
-tl::expected<void, Err> Lexer::lex(std::istream& ist, std::vector<Token>& tokens) {
+tl::expected<void, Err> lex(std::istream& ist, std::vector<Token>& tokens) {
     char lastChar = ' ';
     while (1) {
         auto tok = nexttok(ist, lastChar);
@@ -105,7 +105,7 @@ tl::expected<void, Err> Lexer::lex(std::istream& ist, std::vector<Token>& tokens
     return {};
 }
 
-tl::expected<void, Err> Lexer::lex(const std::filesystem::path& path, std::vector<Token>& tokens) {
+tl::expected<void, Err> lex(const std::filesystem::path& path, std::vector<Token>& tokens) {
     std::ifstream fs(path, std::ios_base::in);
     if (!fs.good()) {
         return tl::make_unexpected(Err{"Error opening file"});
@@ -119,42 +119,35 @@ void fmtTok(fmt::memory_buffer& buff, const Token& token) {
             using T = std::decay_t<decltype(arg)>;
             if constexpr (std::is_same_v<T, Keyword>) {
                 if (arg == Keyword::k_def) {
-                    fmt::format_to(buff, "def\n");
+                    fmt::format_to(buff, "def");
                 } else if (arg == Keyword::k_extern) {
-                    fmt::format_to(buff, "extern\n");
+                    fmt::format_to(buff, "extern");
                 } else {
-                    fmt::format_to(buff, "<<unknown keyword>>\n");
+                    fmt::format_to(buff, "<<unknown keyword>>");
                 }
             } else if constexpr (std::is_same_v<T, Operator>) {
-                fmt::format_to(buff, "op: {0}\n", arg.m_op);
+                fmt::format_to(buff, "op: {0}", arg.m_op);
             } else if constexpr (std::is_same_v<T, Comment>) {
-                fmt::format_to(buff, "comment\n");
+                fmt::format_to(buff, "comment");
             } else if constexpr (std::is_same_v<T, Eof>) {
-                fmt::format_to(buff, "EOF\n");
+                fmt::format_to(buff, "EOF");
             } else if constexpr (std::is_same_v<T, Identifier>) {
-                fmt::format_to(buff, "identifier: {0}\n", arg.m_name);
+                fmt::format_to(buff, "identifier: {0}", arg.m_name);
             } else if constexpr (std::is_same_v<T, literals::Integer>) {
-                fmt::format_to(buff, "int: {0}\n", arg.m_val);
+                fmt::format_to(buff, "int: {0}", arg.m_val);
             } else if constexpr (std::is_same_v<T, literals::Real>) {
-                fmt::format_to(buff, "real: {0}\n", arg.m_val);
+                fmt::format_to(buff, "real: {0}", arg.m_val);
             }
         },
         token);
 }
 
-std::string Lexer::toString(const Token& token) {
+std::string toString(const Token& token) {
     fmt::memory_buffer buff;
     fmtTok(buff, token);
     return fmt::to_string(buff);
 }
 
-void Lexer::print(std::ostream& ost, const std::vector<Token>& tokens) {
-    fmt::memory_buffer buff;
-    for (auto& tok : tokens) {
-        fmtTok(buff, tok);
-    }
-    ost << fmt::to_string(buff);
-}
 
 }  // namespace lexer
 
