@@ -42,18 +42,17 @@ int main(int argc, char** argv) {
 
     //auto path = std::filesystem::u8path("/home/ignacio/workspace/conflake/examples/testX.txt");
 
-    std::vector<pom::lexer::Token> tokens;
-    auto                           reslex = pom::lexer::lex(path, tokens);
-    if (!reslex) {
-        std::cout << "Lexer error: " << reslex.error().m_desc << std::endl;
+    auto tokens = pom::lexer::lex(path);
+    if (!tokens) {
+        std::cout << "Lexer error: " << tokens.error().m_desc << std::endl;
         return -1;
     }
 
     std::cout << "-- Lexer --------" << std::endl;
-    print(std::cout, tokens);
+    print(std::cout, *tokens);
     std::cout << "-----------------" << std::endl << std::endl;
 
-    auto top_level = pom::parser::parse(tokens);
+    auto top_level = pom::parser::parse(*tokens);
     if (!top_level) {
         std::cout << "Parser error: " << top_level.error().m_desc << std::endl;
         return -1;

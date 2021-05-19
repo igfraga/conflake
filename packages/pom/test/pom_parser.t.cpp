@@ -35,12 +35,11 @@ TEST_CASE("Some parser test", "[parser]") {
     // clang-format on
 
     for (auto& [path, expected_size] : ppp) {
-        std::vector<Token> tokens;
-        REQUIRE(lex(path, tokens));
+        auto tokens = lex(path);
+        REQUIRE(tokens);
 
-        auto res = pom::parser::parse(tokens);
+        auto res = pom::parser::parse(*tokens);
         REQUIRE(res);
         REQUIRE(res->size() == expected_size);
-
     }
 }

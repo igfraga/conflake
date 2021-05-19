@@ -45,12 +45,10 @@ TEST_CASE("Whole pipeline test", "[whole][jit]") {
 
     pol::initLlvm();
     for (auto& [path, expected_res] : ppp) {
+        auto tokens = pom::lexer::lex(path);
+        REQUIRE(tokens);
 
-        std::vector<pom::lexer::Token> tokens;
-        auto                           reslex = pom::lexer::lex(path, tokens);
-        REQUIRE(reslex);
-
-        auto top_level = pom::parser::parse(tokens);
+        auto top_level = pom::parser::parse(*tokens);
         REQUIRE(top_level);
         auto sematic_res = pom::semantic::analyze(*top_level);
         REQUIRE(sematic_res);

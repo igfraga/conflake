@@ -18,9 +18,9 @@ class List : public Type {
 
     std::string mangled() const final;
 
-    TypeCSP m_contained_type;
-
     std::shared_ptr<const Type> subscriptedType(int64_t) const final { return m_contained_type; }
+
+    TypeCSP m_contained_type;
 };
 
 inline TypeCSP list(TypeCSP tp) { return std::make_shared<List>(std::move(tp)); }

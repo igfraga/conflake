@@ -59,9 +59,9 @@ inline bool isOpenAngled(const Token& tok) { return isOp(tok, '<'); }
 
 inline bool isCloseAngled(const Token& tok) { return isOp(tok, '>'); }
 
-tl::expected<void, Err> lex(std::istream& stream, std::vector<Token>& tokens);
+tl::expected<std::vector<Token>, Err> lex(std::istream& stream);
 
-tl::expected<void, Err> lex(const std::filesystem::path& path, std::vector<Token>& tokens);
+tl::expected<std::vector<Token>, Err> lex(const std::filesystem::path& path);
 
 std::string toString(const Token& token);
 

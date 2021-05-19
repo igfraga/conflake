@@ -85,8 +85,9 @@ inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar) {
     return tok;
 }
 
-tl::expected<void, Err> lex(std::istream& ist, std::vector<Token>& tokens) {
-    char lastChar = ' ';
+tl::expected<std::vector<Token>, Err> lex(std::istream& ist) {
+    std::vector<Token> tokens;
+    char               lastChar = ' ';
     while (1) {
         auto tok = nexttok(ist, lastChar);
         if (!tok) {
@@ -102,15 +103,15 @@ tl::expected<void, Err> lex(std::istream& ist, std::vector<Token>& tokens) {
         }
     }
 
-    return {};
+    return tokens;
 }
 
-tl::expected<void, Err> lex(const std::filesystem::path& path, std::vector<Token>& tokens) {
+tl::expected<std::vector<Token>, Err> lex(const std::filesystem::path& path) {
     std::ifstream fs(path, std::ios_base::in);
     if (!fs.good()) {
         return tl::make_unexpected(Err{"Error opening file"});
     }
-    return lex(fs, tokens);
+    return lex(fs);
 }
 
 void fmtTok(fmt::memory_buffer& buff, const Token& token) {
@@ -147,7 +148,6 @@ std::string toString(const Token& token) {
     fmtTok(buff, token);
     return fmt::to_string(buff);
 }
-
 
 }  // namespace lexer
 

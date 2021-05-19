@@ -13,7 +13,7 @@ TEST_CASE("Test simple lexer cases", "[lexer][foo]") {
     using namespace pom::lexer;
     using namespace pom::literals;
     using Ident = Identifier;
-    using Op = Operator;
+    using Op    = Operator;
 
     // clang-format off
     std::vector<std::pair<std::string, std::vector<pom::lexer::Token>>> ppp = {
@@ -28,18 +28,17 @@ TEST_CASE("Test simple lexer cases", "[lexer][foo]") {
 
     for (auto& [str, expected] : ppp) {
         std::stringstream ss(str);
-        std::vector<Token> tokens;
-        REQUIRE(lex(ss, tokens));
-        REQUIRE(expected == tokens);
+        auto              tokens = lex(ss);
+        REQUIRE(tokens);
+        REQUIRE(expected == *tokens);
     }
-
 }
 
 TEST_CASE("Test lexer on files", "[lexer]") {
     using namespace pom::lexer;
     using namespace pom::literals;
     using Ident = Identifier;
-    using Op = Operator;
+    using Op    = Operator;
 
     // clang-format off
     std::vector<std::pair<std::filesystem::path, std::vector<pom::lexer::Token>>> ppp = {
@@ -73,8 +72,8 @@ TEST_CASE("Test lexer on files", "[lexer]") {
     // clang-format on
 
     for (auto& [path, expected] : ppp) {
-        std::vector<Token> tokens;
-        REQUIRE(lex(path, tokens));
-        REQUIRE(expected == tokens);
+        auto tokens = lex(path);
+        REQUIRE(tokens);
+        REQUIRE(expected == *tokens);
     }
 }
