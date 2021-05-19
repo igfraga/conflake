@@ -3,6 +3,8 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
+
 namespace pom {
 
 namespace ast {
@@ -41,6 +43,44 @@ struct Printer {
     std::ostream& m_ost;
 };
 
+bool Var::operator==(const Var& other) const {
+    return m_name == other.m_name && m_subscript == other.m_subscript;
+}
+
+bool BinaryExpr::operator==(const BinaryExpr& other) const {
+    return m_op == other.m_op && *m_lhs == *other.m_lhs && *m_rhs == *other.m_rhs;
+}
+
+bool ListExpr::operator==(const ListExpr& other) const {
+    return std::equal(m_expressions.begin(), m_expressions.end(), other.m_expressions.begin(),
+                      [](auto& a, auto& b) { return *a == *b; });
+}
+
+bool Call::operator==(const Call& other) const {
+    return m_function == other.m_function &&
+           std::equal(m_args.begin(), m_args.end(), other.m_args.begin(),
+                      [](auto& a, auto& b) { return *a == *b; });
+}
+
+bool TypeDesc::operator==(const TypeDesc& other) const {
+    return other.m_name == m_name &&
+           std::equal(m_template_args.begin(), m_template_args.end(), other.m_template_args.begin(),
+                      [](auto& a, auto& b) { return *a == *b; });
+}
+
+bool Arg::operator==(const Arg& other) const {
+    return *m_type == *other.m_type && m_name == other.m_name;
+}
+
+bool Signature::operator==(const Signature& other) const {
+    return ((!m_ret_type && !other.m_ret_type) || *m_ret_type == *other.m_ret_type) &&
+           m_name == other.m_name && m_args == other.m_args;
+}
+
+bool Function::operator==(const Function& other) const {
+    return *m_code == *other.m_code && m_sig == other.m_sig;
+}
+
 std::ostream& operator<<(std::ostream& ost, const Expr& e) {
     Printer p(ost);
     std::visit(p, e.m_val);
@@ -61,6 +101,11 @@ std::ostream& operator<<(std::ostream& ost, const Signature& sig) {
     for (auto& [arg_type, arg_name] : sig.m_args) {
         ost << arg_name << ":" << *arg_type << ",";
     }
+    return ost;
+}
+
+std::ostream& operator<<(std::ostream& ost, const Function& fun) {
+    ost << fun.m_sig << " ::: " << *fun.m_code;
     return ost;
 }
 

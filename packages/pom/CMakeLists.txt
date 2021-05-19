@@ -4,6 +4,8 @@ project(pom)
 add_library(pom STATIC
     pom_ast.cpp
     pom_ast.h
+    pom_astbuilder.cpp
+    pom_astbuilder.h
     pom_basictypes.cpp
     pom_basictypes.h
     pom_functiontype.cpp
