@@ -184,8 +184,8 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return tl::make_unexpected(pom_should_have_caught(op_info.error()));
     }
 
-    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), *op_info, lv->m_value,
-                                               lr->m_value);
+    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), *op_info,
+                                               {lv->m_value, lr->m_value});
     if (!bop) {
         return tl::make_unexpected(pom_should_have_caught(bop.error()));
     }
@@ -207,7 +207,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
     auto builtin = pom::ops::getBuiltin(c.m_function, arg_types);
     if (builtin) {
-        auto op = basicoperators::buildBinOp(program.m_builder.get(), *builtin, args[0], args[1]);
+        auto op = basicoperators::buildBinOp(program.m_builder.get(), *builtin, args);
         if (!op) {
             return tl::make_unexpected(Err{op.error().m_desc});
         }
@@ -357,7 +357,8 @@ tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool
     return res;
 }
 
-template<class> inline constexpr bool always_false_v = false;
+template <class>
+inline constexpr bool always_false_v = false;
 
 std::ostream& operator<<(std::ostream& os, const Result& res) {
     return std::visit(
@@ -371,8 +372,7 @@ std::ostream& operator<<(std::ostream& os, const Result& res) {
                 os << (v ? "True" : "False") << std::endl;
             } else if constexpr (std::is_same_v<T, std::monostate>) {
                 os << "void" << std::endl;
-            }
-            else {
+            } else {
                 static_assert(always_false_v<T>, "non-exhaustive visitor!");
             }
             return os;

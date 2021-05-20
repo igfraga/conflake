@@ -18,9 +18,9 @@ struct Err {
     std::string m_desc;
 };
 
-tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase*    builder,
-                                           const pom::ops::OpInfo& op_info, llvm::Value* lv,
-                                           llvm::Value* rv);
+tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase*             builder,
+                                           const pom::ops::OpInfo&          op_info,
+                                           const std::vector<llvm::Value*>& operands);
 
 }  // namespace basicoperators
 
