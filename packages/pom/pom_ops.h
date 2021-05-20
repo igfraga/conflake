@@ -1,8 +1,8 @@
 #pragma once
 
 #include <pom_type.h>
-#include <vector>
 #include <tl/expected.hpp>
+#include <vector>
 
 namespace pom {
 
@@ -12,13 +12,15 @@ struct Err {
     std::string m_desc;
 };
 
+using OpKey = std::variant<char, std::string>;
+
 struct OpInfo {
-    char                 m_op;
+    OpKey                m_op;
     std::vector<TypeCSP> m_args;
     TypeCSP              m_ret_type;
 };
 
-tl::expected<OpInfo, Err> getOp(char op, const std::vector<TypeCSP>& ty);
+tl::expected<OpInfo, Err> getBuiltin(OpKey op, const std::vector<TypeCSP>& ty);
 
 }  // namespace ops
 

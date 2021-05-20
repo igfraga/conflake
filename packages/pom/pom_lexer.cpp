@@ -120,39 +120,43 @@ tl::expected<std::vector<Token>, Err> lex(const std::filesystem::path& path) {
     return lex(fs);
 }
 
-void fmtTok(fmt::memory_buffer& buff, const Token& token) {
-    std::visit(
-        [&](auto&& arg) {
-            using T = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<T, Keyword>) {
-                if (arg == Keyword::k_def) {
-                    fmt::format_to(buff, "def");
-                } else if (arg == Keyword::k_extern) {
-                    fmt::format_to(buff, "extern");
-                } else {
-                    fmt::format_to(buff, "<<unknown keyword>>");
-                }
-            } else if constexpr (std::is_same_v<T, Operator>) {
-                fmt::format_to(buff, "op: {0}", arg.m_op);
-            } else if constexpr (std::is_same_v<T, Comment>) {
-                fmt::format_to(buff, "comment");
-            } else if constexpr (std::is_same_v<T, Eof>) {
-                fmt::format_to(buff, "EOF");
-            } else if constexpr (std::is_same_v<T, Identifier>) {
-                fmt::format_to(buff, "identifier: {0}", arg.m_name);
-            } else if constexpr (std::is_same_v<T, literals::Integer>) {
-                fmt::format_to(buff, "int: {0}", arg.m_val);
-            } else if constexpr (std::is_same_v<T, literals::Real>) {
-                fmt::format_to(buff, "real: {0}", arg.m_val);
-            }
-        },
-        token);
-}
+struct Printer
+{
+    std::string operator()(const Keyword& kw) {
+        if (kw == Keyword::k_def) {
+            return "def";
+        } else if (kw == Keyword::k_extern) {
+            return "extern";
+        } else {
+            return "<<unknown keyword>>";
+        }
+    }
+    std::string operator()(const Operator& op) {
+        return fmt::format("op: {0}", op.m_op);
+    }
+    std::string operator()(const Comment&) {
+        return "comment";
+    }
+    std::string operator()(const Eof&) {
+        return "EOF";
+    }
+    std::string operator()(const Identifier& id) {
+        return fmt::format("identifier: {0}", id.m_name);
+    }
+    std::string operator()(const literals::Integer& val) {
+        return fmt::format("int: {0}", val.m_val);
+    }
+    std::string operator()(const literals::Real& val) {
+        return fmt::format("real: {0}", val.m_val);
+    }
+    std::string operator()(const literals::Boolean& val) {
+        return fmt::format("bool: {0}", val.m_val);
+    }
+};
 
 std::string toString(const Token& token) {
-    fmt::memory_buffer buff;
-    fmtTok(buff, token);
-    return fmt::to_string(buff);
+    Printer pr;
+    return std::visit(pr, token);
 }
 
 }  // namespace lexer

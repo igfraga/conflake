@@ -1,3 +1,7 @@
-def foo(boolean x)
+def foo(real a real b)
+    a < b
+
+def bar(boolean x)
     x
-foo(5 > 3)
+
+and(foo(1, 2), bar(True))

@@ -11,9 +11,14 @@ namespace basicoperators {
 using BinaryOpBuilder =
     std::function<llvm::Value*(llvm::IRBuilderBase*, llvm::Value*, llvm::Value*)>;
 
-std::string make_key(char op, std::vector<pom::TypeCSP> operands) {
+std::string make_key(const pom::ops::OpKey& op, std::vector<pom::TypeCSP> operands) {
     std::ostringstream oss;
-    oss << op << "__";
+    if(std::holds_alternative<char>(op)) {
+        oss << "op" << std::get<char>(op) << "__";
+    }
+    else if(std::holds_alternative<std::string>(op)) {
+        oss << std::get<std::string>(op) << "__";
+    }
     for (auto& operand : operands) {
         oss << operand->mangled();
     }
@@ -41,6 +46,9 @@ struct OpTable {
         m_ops[make_key('-', {integer, integer})] = std::bind(&OpTable::minus_int, this, _1, _2, _3);
         m_ops[make_key('<', {integer, integer})] = std::bind(&OpTable::lt_int, this, _1, _2, _3);
         m_ops[make_key('>', {integer, integer})] = std::bind(&OpTable::gt_int, this, _1, _2, _3);
+
+        m_ops[make_key("or", {boolean, boolean})] = std::bind(&OpTable::or_bool, this, _1, _2, _3);
+        m_ops[make_key("and", {boolean, boolean})] = std::bind(&OpTable::and_bool, this, _1, _2, _3);
     }
 
     llvm::Value* plus_int(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
@@ -74,6 +82,14 @@ struct OpTable {
     llvm::Value* gt_int(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
         return builder->CreateICmpUGT(lv, rv, "gttmp");
     }
+
+    llvm::Value* or_bool(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+        return builder->CreateOr(lv, rv, "ortmp");
+    }
+    llvm::Value* and_bool(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+        return builder->CreateAnd(lv, rv, "andtmp");
+    }
+
 
     std::map<std::string, BinaryOpBuilder> m_ops;
 };

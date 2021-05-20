@@ -178,7 +178,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return lr;
     }
 
-    auto op_info = pom::ops::getOp(e.m_op, {lv->m_type, lr->m_type});
+    auto op_info = pom::ops::getBuiltin(e.m_op, {lv->m_type, lr->m_type});
     if (!op_info) {
         assert(0);
         return tl::make_unexpected(pom_should_have_caught(op_info.error()));
@@ -194,6 +194,28 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::Call& c) {
+
+    std::vector<llvm::Value*> args;
+    std::vector<pom::TypeCSP> arg_types;
+    for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
+        auto aa = codegen(program, context, *c.m_args[i]);
+        if (!aa) {
+            return aa;
+        }
+        args.push_back(aa->m_value);
+        arg_types.push_back(aa->m_type);
+    }
+
+    auto builtin = pom::ops::getBuiltin(c.m_function, arg_types);
+    if(builtin) {
+        auto op = basicoperators::buildBinOp(program.m_builder.get(), *builtin, args[0], args[1]);
+        if(!op) {
+            return tl::make_unexpected(Err{op.error().m_desc});
+        }
+        return DecValue{*op, builtin->m_ret_type};
+    }
+
+
     // Look up the name in the global module table.
     llvm::Function* function = program.m_module->getFunction(c.m_function);
     if (!function) {
@@ -203,15 +225,6 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     if (function->arg_size() != c.m_args.size()) {
         return tl::make_unexpected(Err{fmt::format("Incorrect # arguments passed {0} vs {1}",
                                                    function->arg_size(), c.m_args.size())});
-    }
-
-    std::vector<llvm::Value*> args;
-    for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
-        auto aa = codegen(program, context, *c.m_args[i]);
-        if (!aa) {
-            return aa;
-        }
-        args.push_back(aa->m_value);
     }
 
     auto ret_type = pom::semantic::calculateType(c, context);
@@ -337,7 +350,7 @@ tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool
         int64_t (*fp)() = (int64_t(*)())(uint64_t)*symbol.getAddress();
         res.m_ev        = fp();
     } else if (*tp == *pom::types::boolean()) {
-        int64_t (*fp)() = (int64_t(*)())(uint64_t)*symbol.getAddress();
+        uint8_t (*fp)() = (uint8_t(*)())(uint64_t)*symbol.getAddress();
         auto r          = fp();
         res.m_ev = bool(r == 0 ? false : true);
     }

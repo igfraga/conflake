@@ -79,7 +79,7 @@ tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, const Cont
         return rhs_type;
     }
 
-    auto op = ops::getOp(expr.m_op, {*lhs_type, *rhs_type});
+    auto op = ops::getBuiltin(expr.m_op, {*lhs_type, *rhs_type});
     if(!op) {
         return tl::make_unexpected(Err{op.error().m_desc});
     }
@@ -87,6 +87,21 @@ tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, const Cont
 }
 
 tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, const Context& context) {
+
+    std::vector<TypeCSP> arg_types;
+    for(auto& arg : call.m_args) {
+        auto arg_ty = calculateType(*arg, context);
+        if(!arg_ty) {
+            return arg_ty;
+        }
+        arg_types.push_back(std::move(*arg_ty));
+    }
+
+    auto builtin = ops::getBuiltin(call.m_function, arg_types);
+    if(builtin) {
+        return builtin->m_ret_type;
+    }
+
     auto found = context.m_variables.find(call.m_function);
     if (found == context.m_variables.end()) {
         return tl::make_unexpected(

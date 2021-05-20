@@ -375,10 +375,9 @@ std::ostream& print(std::ostream& ost, const TopLevelUnit& u) {
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
             if constexpr (std::is_same_v<T, ast::Signature>) {
-                ost << "extern: " << v;
+                ost << "extern: " << v << std::endl;;
             } else if constexpr (std::is_same_v<T, ast::Function>) {
-                ost << "func: " << v.m_sig << ": ";
-                ost << *v.m_code;
+                ost << "fun: " << v << std::endl;
             }
         },
         u);

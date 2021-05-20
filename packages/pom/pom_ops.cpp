@@ -30,13 +30,16 @@ std::vector<OpInfo> makeOps() {
         {'>', {integer, integer}, boolean},
         {'<', {real, real}, boolean},
         {'>', {real, real}, boolean},
+
+        {"or", {boolean, boolean}, boolean},
+        {"and", {boolean, boolean}, boolean},
     };
     // clang-format on
     return ops;
-};
+};  // namespace ops
 
-std::multimap<char, OpInfo> byKeyOps(const std::vector<OpInfo>& ops) {
-    std::multimap<char, OpInfo> byk;
+std::multimap<OpKey, OpInfo> byKeyOps(const std::vector<OpInfo>& ops) {
+    std::multimap<OpKey, OpInfo> byk;
     for (auto& op : ops) {
         byk.insert({op.m_op, op});
     }
@@ -48,18 +51,22 @@ bool matches(const OpInfo& func, const std::vector<TypeCSP>& args) {
                       [](auto& x, auto& y) { return *x == *y; });
 }
 
+std::string toStr(const OpKey& key) {
+    return std::visit([](auto& x) { return fmt::format("{}", x); }, key);
+}
+
 }  // namespace
 
-tl::expected<OpInfo, Err> getOp(char op_key, const std::vector<TypeCSP>& operands) {
-    static std::vector<OpInfo>         ops    = makeOps();
-    static std::multimap<char, OpInfo> byName = byKeyOps(ops);
+tl::expected<OpInfo, Err> getBuiltin(OpKey op_key, const std::vector<TypeCSP>& operands) {
+    static std::vector<OpInfo>          ops   = makeOps();
+    static std::multimap<OpKey, OpInfo> byKey = byKeyOps(ops);
 
-    auto fo = byName.find(op_key);
-    if (fo == byName.end()) {
-        return tl::make_unexpected(Err{fmt::format("Op not found: {0}", op_key)});
+    auto fo = byKey.find(op_key);
+    if (fo == byKey.end()) {
+        return tl::make_unexpected(Err{fmt::format("Op not found: {0}", toStr(op_key))});
     }
 
-    for (; fo != byName.end() && fo->first == op_key; ++fo) {
+    for (; fo != byKey.end() && fo->first == op_key; ++fo) {
         if (matches(fo->second, operands)) {
             return fo->second;
         }
@@ -70,8 +77,8 @@ tl::expected<OpInfo, Err> getOp(char op_key, const std::vector<TypeCSP>& operand
         operands_str << ty->description() << ",";
     }
 
-    return tl::make_unexpected(Err{
-        fmt::format("Op not found: {0} with operands of type {1}", op_key, operands_str.str())});
+    return tl::make_unexpected(Err{fmt::format("Builtin not found: {0} with operands of type {1}",
+                                               toStr(op_key), operands_str.str())});
 }
 
 }  // namespace ops

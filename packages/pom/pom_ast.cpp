@@ -23,10 +23,10 @@ struct Printer {
         }
     }
     void operator()(const BinaryExpr& v) {
-        m_ost << fmt::format("(be: {0} ", v.m_op) << *v.m_lhs << " " << *v.m_rhs << ")";
+        m_ost << "(be: " << v.m_op << " " << *v.m_lhs << " " << *v.m_rhs << ")";
     }
     void operator()(const Call& v) {
-        fmt::format("[call {0} <- ", v.m_function);
+        m_ost << "[call " << v.m_function << " <- ";
         for (auto& a : v.m_args) {
             m_ost << *a << ", ";
         }
