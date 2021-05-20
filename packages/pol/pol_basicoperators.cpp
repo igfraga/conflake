@@ -47,6 +47,8 @@ struct OpTable {
 
         m_ops[make_key("or", {boolean, boolean})]  = std::bind(&OpTable::or_bool, this, _1, _2);
         m_ops[make_key("and", {boolean, boolean})] = std::bind(&OpTable::and_bool, this, _1, _2);
+
+        m_ops[make_key("if", {boolean, real, real})] = std::bind(&OpTable::if_real, this, _1, _2);
     }
 
     llvm::Value* plus_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
@@ -88,7 +90,13 @@ struct OpTable {
         return builder->CreateAnd(vs[0], vs[1], "andtmp");
     }
     llvm::Value* if_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
-        return builder->CreateAnd(vs[0], vs[1], "andtmp");
+        auto& ctx = builder->getContext();
+        auto  cmp = builder->CreateICmpEQ(vs[0], llvm::ConstantInt::getTrue(ctx));
+
+        llvm::BasicBlock* them_bb  = llvm::BasicBlock::Create(ctx, "then", builder->GetInsertBlock()->getParent());
+        llvm::BasicBlock* else_bb  = llvm::BasicBlock::Create(ctx, "else");
+        llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(ctx, "ifcont");
+        auto cond = builder->CreateCondBr(cmp, them_bb, else_bb);
     }
 
     std::map<std::string, BinaryOpBuilder> m_ops;
