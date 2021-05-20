@@ -194,7 +194,6 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::Call& c) {
-
     std::vector<llvm::Value*> args;
     std::vector<pom::TypeCSP> arg_types;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
@@ -207,14 +206,13 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     }
 
     auto builtin = pom::ops::getBuiltin(c.m_function, arg_types);
-    if(builtin) {
+    if (builtin) {
         auto op = basicoperators::buildBinOp(program.m_builder.get(), *builtin, args[0], args[1]);
-        if(!op) {
+        if (!op) {
             return tl::make_unexpected(Err{op.error().m_desc});
         }
         return DecValue{*op, builtin->m_ret_type};
     }
-
 
     // Look up the name in the global module table.
     llvm::Function* function = program.m_module->getFunction(c.m_function);
@@ -352,24 +350,34 @@ tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool
     } else if (*tp == *pom::types::boolean()) {
         uint8_t (*fp)() = (uint8_t(*)())(uint64_t)*symbol.getAddress();
         auto r          = fp();
-        res.m_ev = bool(r == 0 ? false : true);
+        res.m_ev        = bool(r == 0 ? false : true);
     }
 
     program.m_jit->removeModule(handle);
     return res;
 }
 
+template<class> inline constexpr bool always_false_v = false;
+
 std::ostream& operator<<(std::ostream& os, const Result& res) {
-    if (std::holds_alternative<double>(res.m_ev)) {
-        os << std::get<double>(res.m_ev) << std::endl;
-    } else if (std::holds_alternative<int64_t>(res.m_ev)) {
-        os << std::get<int64_t>(res.m_ev) << "i" << std::endl;
-    } else if (std::holds_alternative<bool>(res.m_ev)) {
-        os << (std::get<bool>(res.m_ev) ? "True" : "False") << std::endl;
-    } else {
-        os << "void" << std::endl;
-    }
-    return os;
+    return std::visit(
+        [&](auto&& v) -> std::ostream& {
+            using T = std::decay_t<decltype(v)>;
+            if constexpr (std::is_same_v<T, double>) {
+                os << v << std::endl;
+            } else if constexpr (std::is_same_v<T, int64_t>) {
+                os << v << "i" << std::endl;
+            } else if constexpr (std::is_same_v<T, bool>) {
+                os << (v ? "True" : "False") << std::endl;
+            } else if constexpr (std::is_same_v<T, std::monostate>) {
+                os << "void" << std::endl;
+            }
+            else {
+                static_assert(always_false_v<T>, "non-exhaustive visitor!");
+            }
+            return os;
+        },
+        res.m_ev);
 }
 
 }  // namespace codegen
