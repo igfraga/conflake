@@ -16,6 +16,8 @@ add_library(pom STATIC
     pom_listtype.h
     pom_literals.cpp
     pom_literals.h
+    pom_ops.cpp
+    pom_ops.h
     pom_parser.cpp
     pom_parser.h
     pom_semantic.cpp

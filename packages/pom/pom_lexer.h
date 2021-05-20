@@ -40,8 +40,8 @@ struct Identifier {
     bool operator==(const Identifier& other) const { return other.m_name == m_name; }
 };
 
-using Token =
-    std::variant<Keyword, Operator, Comment, Eof, Identifier, literals::Real, literals::Integer>;
+using Token = std::variant<Keyword, Operator, Comment, Eof, Identifier, literals::Real,
+                           literals::Integer, literals::Boolean>;
 
 inline bool isOp(const Token& tok, char op) {
     return std::holds_alternative<Operator>(tok) && std::get<Operator>(tok).m_op == op;

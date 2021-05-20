@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <pom_ops.h>
 #include <pom_type.h>
 #include <tl/expected.hpp>
 #include "llvm/IR/IRBuilder.h"
@@ -17,8 +18,9 @@ struct Err {
     std::string m_desc;
 };
 
-tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase* builder, char op,
-                                           const pom::Type& type, llvm::Value* lv, llvm::Value* rv);
+tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase*    builder,
+                                           const pom::ops::OpInfo& op_info, llvm::Value* lv,
+                                           llvm::Value* rv);
 
 }  // namespace basicoperators
 

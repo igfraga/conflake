@@ -34,8 +34,14 @@ inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar) {
         if (identifier == "def") {
             return Keyword::k_def;
         }
-        if (identifier == "extern") {
+        else if (identifier == "extern") {
             return Keyword::k_extern;
+        }
+        else if (identifier == "True") {
+            return literals::Boolean{true};
+        }
+        else if (identifier == "False") {
+            return literals::Boolean{false};
         }
         return Identifier{identifier};
     }

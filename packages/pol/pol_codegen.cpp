@@ -9,6 +9,7 @@
 #include <pol_llvm.h>
 #include <pom_basictypes.h>
 #include <pom_listtype.h>
+#include <pom_ops.h>
 #include <iostream>
 
 #include "llvm/ADT/APFloat.h"
@@ -64,6 +65,11 @@ struct Program {
     std::unique_ptr<llvm::legacy::FunctionPassManager> m_fpm;
     std::unique_ptr<Jit>                               m_jit;
 };
+
+template <class E>
+inline Err pom_should_have_caught(const E& e) {
+    return Err{fmt::format("pom should have caught: {0}", e.m_desc)};
+}
 
 struct DecValue {
     llvm::Value* m_value;
@@ -147,7 +153,8 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     llvm::Value* sz1 =
         llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, gened.size(), false));
 
-    auto allocated = pol::createMalloc(program.m_builder.get(), int_ptr, *ty, sz1, nullptr, nullptr, "a");
+    auto allocated =
+        pol::createMalloc(program.m_builder.get(), int_ptr, *ty, sz1, nullptr, nullptr, "a");
 
     for (auto i = 0ull; i < gened.size(); i++) {
         auto index = llvm::ConstantInt::get(*program.m_context, llvm::APInt(32, int(i), true));
@@ -171,10 +178,16 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return lr;
     }
 
-    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), e.m_op, *lv->m_type,
-                                               lv->m_value, lr->m_value);
+    auto op_info = pom::ops::getOp(e.m_op, {lv->m_type, lr->m_type});
+    if (!op_info) {
+        assert(0);
+        return tl::make_unexpected(pom_should_have_caught(op_info.error()));
+    }
+
+    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), *op_info, lv->m_value,
+                                               lr->m_value);
     if (!bop) {
-        return tl::make_unexpected(Err{bop.error().m_desc});
+        return tl::make_unexpected(pom_should_have_caught(bop.error()));
     }
     return DecValue{*bop, lv->m_type};
 }
@@ -317,12 +330,16 @@ tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool
     }
 
     Result res;
-    if (tp->mangled() == "real") {
+    if (*tp == *pom::types::real()) {
         double (*fp)() = (double (*)())(uint64_t)*symbol.getAddress();
         res.m_ev       = fp();
-    } else if (tp->mangled() == "integer") {
+    } else if (*tp == *pom::types::integer()) {
         int64_t (*fp)() = (int64_t(*)())(uint64_t)*symbol.getAddress();
         res.m_ev        = fp();
+    } else if (*tp == *pom::types::boolean()) {
+        int64_t (*fp)() = (int64_t(*)())(uint64_t)*symbol.getAddress();
+        auto r          = fp();
+        res.m_ev = bool(r == 0 ? false : true);
     }
 
     program.m_jit->removeModule(handle);
@@ -334,6 +351,8 @@ std::ostream& operator<<(std::ostream& os, const Result& res) {
         os << std::get<double>(res.m_ev) << std::endl;
     } else if (std::holds_alternative<int64_t>(res.m_ev)) {
         os << std::get<int64_t>(res.m_ev) << "i" << std::endl;
+    } else if (std::holds_alternative<bool>(res.m_ev)) {
+        os << (std::get<bool>(res.m_ev) ? "True" : "False") << std::endl;
     } else {
         os << "void" << std::endl;
     }

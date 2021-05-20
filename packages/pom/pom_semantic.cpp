@@ -9,6 +9,7 @@
 #include <pom_functiontype.h>
 #include <pom_typebuilder.h>
 #include <pom_listtype.h>
+#include <pom_ops.h>
 
 #include <cassert>
 
@@ -78,11 +79,11 @@ tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, const Cont
         return rhs_type;
     }
 
-    if (**rhs_type != **lhs_type) {
-        return tl::make_unexpected(Err{fmt::format("Type error calling '{0}'", expr.m_op)});
+    auto op = ops::getOp(expr.m_op, {*lhs_type, *rhs_type});
+    if(!op) {
+        return tl::make_unexpected(Err{op.error().m_desc});
     }
-
-    return rhs_type;
+    return op->m_ret_type;
 }
 
 tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, const Context& context) {

@@ -22,6 +22,7 @@ int tokPrecedence(const lexer::Token& tok) {
         // Install standard binary operators.
         // 1 is lowest precedence.
         binopPrecedence['<'] = 10;
+        binopPrecedence['>'] = 10;
         binopPrecedence['+'] = 20;
         binopPrecedence['-'] = 20;
         binopPrecedence['*'] = 40;  // highest.
@@ -145,6 +146,10 @@ expected<ast::ExprP> parsePrimary(TokIt& tok_it) {
         return std::make_unique<ast::Expr>(expr);
     } else if (std::holds_alternative<literals::Integer>(*tok_it)) {
         auto expr = ast::Literal{std::get<literals::Integer>(*tok_it)};
+        ++tok_it;
+        return std::make_unique<ast::Expr>(expr);
+    } else if (std::holds_alternative<literals::Boolean>(*tok_it)) {
+        auto expr = ast::Literal{std::get<literals::Boolean>(*tok_it)};
         ++tok_it;
         return std::make_unique<ast::Expr>(expr);
     }

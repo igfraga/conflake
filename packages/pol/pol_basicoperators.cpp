@@ -1,6 +1,8 @@
 
 #include <fmt/format.h>
 #include <pol_basicoperators.h>
+#include <pom_basictypes.h>
+#include <sstream>
 
 namespace pol {
 
@@ -9,70 +11,83 @@ namespace basicoperators {
 using BinaryOpBuilder =
     std::function<llvm::Value*(llvm::IRBuilderBase*, llvm::Value*, llvm::Value*)>;
 
-struct IntegerOpTable {
-    IntegerOpTable() {
+std::string make_key(char op, std::vector<pom::TypeCSP> operands) {
+    std::ostringstream oss;
+    oss << op << "__";
+    for (auto& operand : operands) {
+        oss << operand->mangled();
+    }
+    return oss.str();
+}
+
+struct OpTable {
+    OpTable() {
+        auto real    = pom::types::real();
+        auto boolean = pom::types::boolean();
+        auto integer = pom::types::integer();
+
         using namespace std::placeholders;
-        m_ops['+'] = std::bind(&IntegerOpTable::plus, this, _1, _2, _3);
-        m_ops['-'] = std::bind(&IntegerOpTable::minus, this, _1, _2, _3);
-        m_ops['*'] = std::bind(&IntegerOpTable::multiply, this, _1, _2, _3);
+        m_ops[make_key('+', {real, real})] = std::bind(&OpTable::plus_real, this, _1, _2, _3);
+        m_ops[make_key('-', {real, real})] = std::bind(&OpTable::minus_real, this, _1, _2, _3);
+        m_ops[make_key('*', {real, real})] = std::bind(&OpTable::multiply_real, this, _1, _2, _3);
+        m_ops[make_key('<', {real, real})] = std::bind(&OpTable::lt_real, this, _1, _2, _3);
+        m_ops[make_key('>', {real, real})] = std::bind(&OpTable::gt_real, this, _1, _2, _3);
+
+        m_ops[make_key('+', {integer, integer})] = std::bind(&OpTable::plus_int, this, _1, _2, _3);
+        m_ops[make_key('-', {integer, integer})] = std::bind(&OpTable::minus_int, this, _1, _2, _3);
+        m_ops[make_key('*', {integer, integer})] =
+            std::bind(&OpTable::multiply_int, this, _1, _2, _3);
+        m_ops[make_key('+', {integer, integer})] = std::bind(&OpTable::plus_int, this, _1, _2, _3);
+        m_ops[make_key('-', {integer, integer})] = std::bind(&OpTable::minus_int, this, _1, _2, _3);
+        m_ops[make_key('<', {integer, integer})] = std::bind(&OpTable::lt_int, this, _1, _2, _3);
+        m_ops[make_key('>', {integer, integer})] = std::bind(&OpTable::gt_int, this, _1, _2, _3);
     }
 
-    llvm::Value* plus(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+    llvm::Value* plus_int(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
         return builder->CreateAdd(lv, rv, "addtmp");
     }
-    llvm::Value* minus(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+    llvm::Value* minus_int(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
         return builder->CreateSub(lv, rv, "subtmp");
     }
-    llvm::Value* multiply(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+    llvm::Value* multiply_int(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
         return builder->CreateMul(lv, rv, "multmp");
     }
-
-    std::map<char, BinaryOpBuilder> m_ops;
-};
-
-struct RealOpTable {
-    RealOpTable() {
-        using namespace std::placeholders;
-        m_ops['+'] = std::bind(&RealOpTable::plus, this, _1, _2, _3);
-        m_ops['-'] = std::bind(&RealOpTable::minus, this, _1, _2, _3);
-        m_ops['*'] = std::bind(&RealOpTable::multiply, this, _1, _2, _3);
-    }
-
-    llvm::Value* plus(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+    llvm::Value* plus_real(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
         return builder->CreateFAdd(lv, rv, "addtmp");
     }
-    llvm::Value* minus(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+    llvm::Value* minus_real(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
         return builder->CreateFSub(lv, rv, "subtmp");
     }
-    llvm::Value* multiply(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+    llvm::Value* multiply_real(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
         return builder->CreateFMul(lv, rv, "multmp");
     }
 
-    std::map<char, BinaryOpBuilder> m_ops;
-};
-
-tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase* builder, char op,
-                                           const pom::Type& type, llvm::Value* lv,
-                                           llvm::Value* rv) {
-    static const IntegerOpTable int_ops;
-    static const RealOpTable    real_ops;
-
-    auto mkerr = [&]() {
-        return Err{fmt::format("invalid binary operator {0} on {1}", op, type.description())};
-    };
-
-    const std::map<char, BinaryOpBuilder>* ops;
-    if (type.mangled() == "integer") {
-        ops = &int_ops.m_ops;
-    } else if (type.mangled() == "real") {
-        ops = &real_ops.m_ops;
-    } else {
-        return tl::make_unexpected(mkerr());
+    llvm::Value* lt_real(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+        return builder->CreateFCmpULT(lv, rv, "lttmp");
+    }
+    llvm::Value* gt_real(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+        return builder->CreateFCmpUGT(lv, rv, "gttmp");
+    }
+    llvm::Value* lt_int(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+        return builder->CreateICmpULT(lv, rv, "lttmp");
+    }
+    llvm::Value* gt_int(llvm::IRBuilderBase* builder, llvm::Value* lv, llvm::Value* rv) {
+        return builder->CreateICmpUGT(lv, rv, "gttmp");
     }
 
-    auto fo = ops->find(op);
-    if (fo == ops->end()) {
-        return tl::make_unexpected(mkerr());
+    std::map<std::string, BinaryOpBuilder> m_ops;
+};
+
+tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase*    builder,
+                                           const pom::ops::OpInfo& op_info, llvm::Value* lv,
+                                           llvm::Value* rv) {
+    static const OpTable ops;
+
+    std::string key = make_key(op_info.m_op, op_info.m_args);
+
+    auto fo = ops.m_ops.find(key);
+    if (fo == ops.m_ops.end()) {
+        return tl::make_unexpected(Err{fmt::format("invalid binary operator {0}", key)});
     }
     return fo->second(builder, lv, rv);
 }

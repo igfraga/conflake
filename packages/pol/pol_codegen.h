@@ -13,7 +13,7 @@ struct Err {
 };
 
 struct Result {
-    std::variant<std::monostate, double, int64_t> m_ev;
+    std::variant<std::monostate, double, int64_t, bool> m_ev;
 
     bool operator==(const Result& other) const { return m_ev == other.m_ev; }
 };
