@@ -7,9 +7,9 @@
 
 #include <pom_basictypes.h>
 #include <pom_functiontype.h>
-#include <pom_typebuilder.h>
 #include <pom_listtype.h>
 #include <pom_ops.h>
+#include <pom_typebuilder.h>
 
 #include <cassert>
 
@@ -17,25 +17,25 @@ namespace pom {
 
 namespace semantic {
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, const Context& context);
+namespace {
 
-tl::expected<TypeCSP, Err> calculateType(const literals::Boolean&, const Context&) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, Context& context);
+
+tl::expected<TypeCSP, Err> calculateType(const literals::Boolean&, Context&) {
     return types::boolean();
 }
 
-tl::expected<TypeCSP, Err> calculateType(const literals::Integer&, const Context&) {
+tl::expected<TypeCSP, Err> calculateType(const literals::Integer&, Context&) {
     return types::integer();
 }
 
-tl::expected<TypeCSP, Err> calculateType(const literals::Real&, const Context&) {
-    return types::real();
-}
+tl::expected<TypeCSP, Err> calculateType(const literals::Real&, Context&) { return types::real(); }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Literal& lit, const Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Literal& lit, Context& context) {
     return std::visit([&](auto& x) { return calculateType(x, context); }, lit);
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, const Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, Context& context) {
     auto found = context.m_variables.find(var.m_name);
     if (found == context.m_variables.end()) {
         return tl::make_unexpected(
@@ -48,7 +48,7 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, const Context& con
     return ty;
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, const Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, Context& context) {
     TypeCSP ty;
     for (auto& expr : li.m_expressions) {
         auto res = calculateType(*expr, context);
@@ -65,11 +65,16 @@ tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, const Context&
                 Err{fmt::format("Mismatching types in lists, found {0} and {1}", ty->description(),
                                 (*res)->description())});
         }
+        auto ins = context.m_expressions.insert({expr->m_id, ty});
+        if (!ins.second) {
+            assert(0);
+            return tl::make_unexpected(Err{"Duplicated expression id."});
+        }
     }
     return std::make_shared<types::List>(ty);
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, const Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, Context& context) {
     auto lhs_type = calculateType(*expr.m_lhs, context);
     if (!lhs_type) {
         return lhs_type;
@@ -79,26 +84,38 @@ tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, const Cont
         return rhs_type;
     }
 
+    auto ins_l = context.m_expressions.insert({expr.m_lhs->m_id, *lhs_type});
+    auto ins_r = context.m_expressions.insert({expr.m_rhs->m_id, *rhs_type});
+    if (!ins_l.second || !ins_r.second) {
+        assert(0);
+        return tl::make_unexpected(Err{"Duplicated expression id."});
+    }
+
     auto op = ops::getBuiltin(expr.m_op, {*lhs_type, *rhs_type});
-    if(!op) {
+    if (!op) {
         return tl::make_unexpected(Err{op.error().m_desc});
     }
     return op->m_ret_type;
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, const Context& context) {
-
+tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, Context& context) {
     std::vector<TypeCSP> arg_types;
-    for(auto& arg : call.m_args) {
+    for (auto& arg : call.m_args) {
         auto arg_ty = calculateType(*arg, context);
-        if(!arg_ty) {
+        if (!arg_ty) {
             return arg_ty;
         }
-        arg_types.push_back(std::move(*arg_ty));
+        arg_types.push_back(*arg_ty);
+
+        auto ins = context.m_expressions.insert({arg->m_id, *arg_ty});
+        if (!ins.second) {
+            assert(0);
+            return tl::make_unexpected(Err{"Duplicated expression id."});
+        }
     }
 
     auto builtin = ops::getBuiltin(call.m_function, arg_types);
-    if(builtin) {
+    if (builtin) {
         return builtin->m_ret_type;
     }
 
@@ -113,7 +130,7 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, const Context& c
     return found->second->returnType();
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, const Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, Context& context) {
     return std::visit([&](auto& x) { return calculateType(x, context); }, expr.m_val);
 }
 
@@ -126,9 +143,11 @@ TypeCSP signatureType(const Signature& sig) {
     return std::make_shared<types::Function>(fun);
 }
 
+}  // namespace
+
 TypeCSP Function::type() const { return signatureType(m_sig); }
 
-tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) {
+tl::expected<Signature, Err> analyze(const ast::Signature& sig, Context&) {
     Signature sem_sig;
     sem_sig.m_name = sig.m_name;
     for (auto& arg : sig.m_args) {
@@ -144,7 +163,7 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, const Context&) 
     return sem_sig;
 }
 
-tl::expected<Function, Err> analyze(const ast::Function& function, const Context& outer_context) {
+tl::expected<Function, Err> analyze(const ast::Function& function, Context& outer_context) {
     auto sig = analyze(function.m_sig, outer_context);
     if (!sig) {
         return tl::make_unexpected(sig.error());
@@ -164,6 +183,7 @@ tl::expected<Function, Err> analyze(const ast::Function& function, const Context
     if (!ret_type) {
         return tl::make_unexpected(ret_type.error());
     }
+
     assert(*ret_type);
     if (sig->m_return_type) {
         if (*sig->m_return_type != **ret_type) {
@@ -175,6 +195,11 @@ tl::expected<Function, Err> analyze(const ast::Function& function, const Context
         sig->m_return_type = *ret_type;
     }
 
+    auto ins = context.m_expressions.insert({function.m_code->m_id, *ret_type});
+    if(!ins.second) {
+        assert(0);
+        return tl::make_unexpected(Err{"Duplicated expression id."});
+    }
     return Function{*sig, function.m_code, context};
 }
 
@@ -219,6 +244,24 @@ tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
     return semantic_top_level;
 }
 
+tl::expected<TypeCSP, Err> Context::expressionType(int64_t id) const
+{
+    auto fo = m_expressions.find(id);
+    if(fo == m_expressions.end()) {
+        return tl::make_unexpected(Err{fmt::format("Expression id not found: {0}", id)});
+    }
+    return fo->second;
+}
+
+tl::expected<TypeCSP, Err> Context::variableType(std::string_view name) const
+{
+    auto fo = m_variables.find(std::string(name));
+    if(fo == m_variables.end()) {
+        return tl::make_unexpected(Err{fmt::format("Variable not found: {0}", name)});
+    }
+    return fo->second;
+}
+
 std::ostream& operator<<(std::ostream& ost, const Signature& sig) {
     ost << sig.m_name << " <- ";
     for (auto& [arg_type, arg_name] : sig.m_args) {
@@ -256,6 +299,10 @@ std::ostream& operator<<(std::ostream& ost, const Context& context) {
     ost << "Variables::" << std::endl;
     for (auto& v : context.m_variables) {
         ost << v.first << ": " << v.second->description() << std::endl;
+    }
+    ost << "Expressions::" << std::endl;
+    for (auto& e : context.m_expressions) {
+        ost << e.first << ": " << e.second->description() << std::endl;
     }
     ost << "===========---------==========" << std::endl;
     return ost;

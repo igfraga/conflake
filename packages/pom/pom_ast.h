@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -88,6 +89,8 @@ struct Expr {
 
     bool operator==(const Expr& other) const { return m_val == other.m_val; }
 };
+
+bool visitExprTree(const Expr& expr, const std::function<bool(const Expr&)>& visitor);
 
 std::ostream& operator<<(std::ostream& os, const TypeDesc& value);
 

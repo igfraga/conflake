@@ -96,12 +96,12 @@ tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::
 }
 
 tl::expected<DecValue, Err> codegen(Program&                 program, const pom::semantic::Context&,
-                                    const pom::ast::Literal& v) {
+                                    const pom::ast::Literal& v, int64_t) {
     return std::visit([&](auto& e) { return literalValue(program, e); }, v);
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Var& var) {
+                                    const pom::ast::Var& var, int64_t) {
     // Look this variable up in the function.
     llvm::Value* v = program.m_named_values[var.m_name];
     if (!v) {
@@ -134,7 +134,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::ListExpr& li) {
+                                    const pom::ast::ListExpr& li, int64_t) {
     std::vector<DecValue> gened;
     for (auto& exp : li.m_expressions) {
         auto lie = codegen(program, context, *exp);
@@ -168,7 +168,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::BinaryExpr& e) {
+                                    const pom::ast::BinaryExpr& e, int64_t) {
     auto lv = codegen(program, context, *e.m_lhs);
     if (!lv) {
         return lv;
@@ -193,7 +193,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Call& c) {
+                                    const pom::ast::Call& c, int64_t expr_id) {
     std::vector<llvm::Value*> args;
     std::vector<pom::TypeCSP> arg_types;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
@@ -225,7 +225,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
                                                    function->arg_size(), c.m_args.size())});
     }
 
-    auto ret_type = pom::semantic::calculateType(c, context);
+    auto ret_type = context.expressionType(expr_id);
     if (!ret_type) {
         return tl::make_unexpected(Err{ret_type.error().m_desc});
     }
@@ -235,7 +235,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::Expr& v) {
-    return std::visit([&](auto&& w) { return codegen(program, context, w); }, v.m_val);
+    return std::visit([&](auto&& w) { return codegen(program, context, w, v.m_id); }, v.m_val);
 }
 
 tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Signature& s) {

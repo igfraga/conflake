@@ -9,6 +9,48 @@ namespace pom {
 
 namespace ast {
 
+struct ExprVisitor {
+    using VisitorFun = std::function<bool(const Expr&)>;
+
+    ExprVisitor(const VisitorFun& fun) : m_fun(fun) {}
+
+    bool operator()(const Literal&) { return true; }
+    bool operator()(const Var&) { return true; }
+    bool operator()(const BinaryExpr& v) {
+        if (!visitExprTree(*v.m_lhs, m_fun) || !visitExprTree(*v.m_rhs, m_fun)) {
+            return false;
+        }
+        return true;
+    }
+    bool operator()(const Call& v) {
+        for (auto& e : v.m_args) {
+            if (!visitExprTree(*e, m_fun)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    bool operator()(const ListExpr& v) {
+        for (auto& e : v.m_expressions) {
+            if (!visitExprTree(*e, m_fun)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    const VisitorFun& m_fun;
+};
+
+bool visitExprTree(const Expr& expr, const std::function<bool(const Expr&)>& visitor_fun) {
+    ExprVisitor expr_visitor(visitor_fun);
+    auto        stop = std::visit(expr_visitor, expr.m_val);
+    if (!stop) {
+        return false;
+    }
+    return visitor_fun(expr);
+}
+
 struct Printer {
     Printer(std::ostream& ost) : m_ost(ost) {}
 

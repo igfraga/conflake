@@ -15,10 +15,13 @@ struct Err {
     std::string m_desc;
 };
 
-using VariableMap = std::map<std::string, TypeCSP>;
-
 struct Context {
-    VariableMap m_variables;
+    std::map<std::string, TypeCSP> m_variables;
+    std::map<int64_t, TypeCSP>     m_expressions;
+
+    tl::expected<TypeCSP, Err> expressionType(int64_t id) const;
+
+    tl::expected<TypeCSP, Err> variableType(std::string_view name) const;
 };
 
 struct Signature {
@@ -37,8 +40,6 @@ struct Function {
 
 using TopLevelUnit = std::variant<Signature, Function>;
 using TopLevel     = std::vector<TopLevelUnit>;
-
-tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, const Context& context);
 
 tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level);
 

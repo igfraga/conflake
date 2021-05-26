@@ -85,6 +85,16 @@ TEST_CASE("Test parser samples", "[parser]") {
         for(auto i = 0ull; i < res->size(); i++) {
             auto func = std::get<ast::Function>((*res)[i]);
             REQUIRE(func == expected[i]);
+
+            std::vector<int64_t> ids;
+            ast::visitExprTree(*func.m_code, [&](const ast::Expr& expr) {
+                ids.push_back(expr.m_id);
+                return true;
+            });
+            std::vector<int64_t> expected_ids(ids);
+            std::iota(expected_ids.begin(), expected_ids.end(), 0ll);
+            REQUIRE(ids.size() > 1);
+            REQUIRE(expected_ids == ids);
         }
     }
 }
