@@ -77,13 +77,14 @@ struct Function {
 };
 
 struct Expr {
-    explicit Expr(Literal val) : m_val(std::move(val)) {}
-    explicit Expr(Var val) : m_val(std::move(val)) {}
-    explicit Expr(ListExpr val) : m_val(std::move(val)) {}
-    explicit Expr(BinaryExpr val) : m_val(std::move(val)) {}
-    explicit Expr(Call val) : m_val(std::move(val)) {}
+    explicit Expr(Literal val, int64_t id) : m_val(std::move(val)), m_id(id) {}
+    explicit Expr(Var val, int64_t id) : m_val(std::move(val)), m_id(id) {}
+    explicit Expr(ListExpr val, int64_t id) : m_val(std::move(val)), m_id(id) {}
+    explicit Expr(BinaryExpr val, int64_t id) : m_val(std::move(val)), m_id(id) {}
+    explicit Expr(Call val, int64_t id) : m_val(std::move(val)), m_id(id) {}
 
     std::variant<Literal, Var, ListExpr, BinaryExpr, Call> m_val;
+    int64_t                                                m_id;
 
     bool operator==(const Expr& other) const { return m_val == other.m_val; }
 };
