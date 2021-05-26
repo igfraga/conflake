@@ -17,9 +17,9 @@ struct Err {
 
 struct Context {
     std::map<std::string, TypeCSP> m_variables;
-    std::map<int64_t, TypeCSP>     m_expressions;
+    std::map<ast::ExprId, TypeCSP> m_expressions;
 
-    tl::expected<TypeCSP, Err> expressionType(int64_t id) const;
+    tl::expected<TypeCSP, Err> expressionType(ast::ExprId id) const;
 
     tl::expected<TypeCSP, Err> variableType(std::string_view name) const;
 };

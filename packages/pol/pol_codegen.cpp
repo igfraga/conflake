@@ -96,12 +96,12 @@ tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::
 }
 
 tl::expected<DecValue, Err> codegen(Program&                 program, const pom::semantic::Context&,
-                                    const pom::ast::Literal& v, int64_t) {
+                                    const pom::ast::Literal& v, pom::ast::ExprId) {
     return std::visit([&](auto& e) { return literalValue(program, e); }, v);
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Var& var, int64_t) {
+                                    const pom::ast::Var& var, pom::ast::ExprId) {
     // Look this variable up in the function.
     llvm::Value* v = program.m_named_values[var.m_name];
     if (!v) {
@@ -134,7 +134,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::ListExpr& li, int64_t) {
+                                    const pom::ast::ListExpr& li, pom::ast::ExprId) {
     std::vector<DecValue> gened;
     for (auto& exp : li.m_expressions) {
         auto lie = codegen(program, context, *exp);
@@ -168,7 +168,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::BinaryExpr& e, int64_t) {
+                                    const pom::ast::BinaryExpr& e, pom::ast::ExprId) {
     auto lv = codegen(program, context, *e.m_lhs);
     if (!lv) {
         return lv;
@@ -193,7 +193,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Call& c, int64_t expr_id) {
+                                    const pom::ast::Call& c, pom::ast::ExprId expr_id) {
     std::vector<llvm::Value*> args;
     std::vector<pom::TypeCSP> arg_types;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {

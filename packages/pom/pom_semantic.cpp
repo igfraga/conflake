@@ -244,7 +244,7 @@ tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
     return semantic_top_level;
 }
 
-tl::expected<TypeCSP, Err> Context::expressionType(int64_t id) const
+tl::expected<TypeCSP, Err> Context::expressionType(ast::ExprId id) const
 {
     auto fo = m_expressions.find(id);
     if(fo == m_expressions.end()) {

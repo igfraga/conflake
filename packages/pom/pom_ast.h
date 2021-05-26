@@ -77,6 +77,8 @@ struct Function {
     bool operator==(const Function& other) const;
 };
 
+using ExprId = int64_t;
+
 struct Expr {
     explicit Expr(Literal val, int64_t id) : m_val(std::move(val)), m_id(id) {}
     explicit Expr(Var val, int64_t id) : m_val(std::move(val)), m_id(id) {}
@@ -85,7 +87,7 @@ struct Expr {
     explicit Expr(Call val, int64_t id) : m_val(std::move(val)), m_id(id) {}
 
     std::variant<Literal, Var, ListExpr, BinaryExpr, Call> m_val;
-    int64_t                                                m_id;
+    ExprId                                                 m_id;
 
     bool operator==(const Expr& other) const { return m_val == other.m_val; }
 };

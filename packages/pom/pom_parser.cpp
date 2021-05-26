@@ -39,9 +39,9 @@ int tokPrecedence(const lexer::Token& tok) {
 }
 
 struct ParserContext {
-    int64_t m_current_id = 0;
+    ast::ExprId m_current_id = 0;
 
-    int64_t nextId() { return m_current_id++; }
+    ast::ExprId nextId() { return m_current_id++; }
 };
 
 expected<ast::ExprP> parseExpression(TokIt& tok_it, ParserContext& ctx);
