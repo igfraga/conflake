@@ -70,6 +70,16 @@ class OpTable {
     }
     tl::expected<llvm::Value*, Err> if_real(llvm::IRBuilderBase*               builder,
                                             const std::vector<ValueGenerator>& vs) {
+        return if_generic(builder, vs, llvm::Type::getDoubleTy(builder->getContext()));
+    }
+    tl::expected<llvm::Value*, Err> if_int(llvm::IRBuilderBase*               builder,
+                                            const std::vector<ValueGenerator>& vs) {
+        return if_generic(builder, vs, llvm::Type::getInt64Ty(builder->getContext()));
+    }
+
+    tl::expected<llvm::Value*, Err> if_generic(llvm::IRBuilderBase*               builder,
+                                               const std::vector<ValueGenerator>& vs,
+                                               llvm::Type*                        ty) {
         auto& ctx = builder->getContext();
         auto  bv  = vs[0](builder);
         if (!bv) {
@@ -108,7 +118,7 @@ class OpTable {
         fn->getBasicBlockList().push_back(merge_bb);
         builder->SetInsertPoint(merge_bb);
         llvm::PHINode* phi =
-            builder->CreatePHI(llvm::Type::getDoubleTy(builder->getContext()), 2, "iftmp");
+            builder->CreatePHI(ty, 2, "iftmp");
 
         phi->addIncoming(*lv, then_bb);
         phi->addIncoming(*rv, else_bb);
@@ -148,6 +158,7 @@ OpTable::OpTable() {
     m_ops[make_key("and", {boolean, boolean})] = std::bind(&OpTable::and_bool, this, _1, _2);
 
     m_adv_ops[make_key("if", {boolean, real, real})] = std::bind(&OpTable::if_real, this, _1, _2);
+    m_adv_ops[make_key("if", {boolean, integer, integer})] = std::bind(&OpTable::if_int, this, _1, _2);
 }
 
 tl::expected<llvm::Value*, Err> OpTable::generate(

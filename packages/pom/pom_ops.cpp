@@ -35,6 +35,7 @@ std::vector<OpInfo> makeOps() {
         {"and", {boolean, boolean}, boolean},
 
         {"if", {boolean, real, real}, real},
+        {"if", {boolean, integer, integer}, integer},
     };
     // clang-format on
     return ops;
