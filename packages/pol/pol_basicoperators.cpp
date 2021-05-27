@@ -24,31 +24,15 @@ std::string make_key(const pom::ops::OpKey& op, std::vector<pom::TypeCSP> operan
     return oss.str();
 }
 
-struct OpTable {
-    OpTable() {
-        auto real    = pom::types::real();
-        auto boolean = pom::types::boolean();
-        auto integer = pom::types::integer();
+class OpTable {
+   public:
+    OpTable();
 
-        using namespace std::placeholders;
-        m_ops[make_key('+', {real, real})] = std::bind(&OpTable::plus_real, this, _1, _2);
-        m_ops[make_key('-', {real, real})] = std::bind(&OpTable::minus_real, this, _1, _2);
-        m_ops[make_key('*', {real, real})] = std::bind(&OpTable::multiply_real, this, _1, _2);
-        m_ops[make_key('<', {real, real})] = std::bind(&OpTable::lt_real, this, _1, _2);
-        m_ops[make_key('>', {real, real})] = std::bind(&OpTable::gt_real, this, _1, _2);
+    tl::expected<llvm::Value*, Err> generate(llvm::IRBuilderBase*               builder,
+                                             const pom::ops::OpInfo&            op_info,
+                                             const std::vector<ValueGenerator>& operands) const;
 
-        m_ops[make_key('+', {integer, integer})] = std::bind(&OpTable::plus_int, this, _1, _2);
-        m_ops[make_key('-', {integer, integer})] = std::bind(&OpTable::minus_int, this, _1, _2);
-        m_ops[make_key('*', {integer, integer})] = std::bind(&OpTable::multiply_int, this, _1, _2);
-        m_ops[make_key('+', {integer, integer})] = std::bind(&OpTable::plus_int, this, _1, _2);
-        m_ops[make_key('-', {integer, integer})] = std::bind(&OpTable::minus_int, this, _1, _2);
-        m_ops[make_key('<', {integer, integer})] = std::bind(&OpTable::lt_int, this, _1, _2);
-        m_ops[make_key('>', {integer, integer})] = std::bind(&OpTable::gt_int, this, _1, _2);
-
-        m_ops[make_key("or", {boolean, boolean})]  = std::bind(&OpTable::or_bool, this, _1, _2);
-        m_ops[make_key("and", {boolean, boolean})] = std::bind(&OpTable::and_bool, this, _1, _2);
-    }
-
+   private:
     llvm::Value* plus_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
         return builder->CreateAdd(vs[0], vs[1], "addtmp");
     }
@@ -94,18 +78,66 @@ struct OpTable {
     std::map<std::string, BinaryOpBuilder> m_ops;
 };
 
-tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase*             builder,
-                                           const pom::ops::OpInfo&          op_info,
-                                           const std::vector<llvm::Value*>& operands) {
-    static const OpTable ops;
+OpTable::OpTable() {
+    auto real    = pom::types::real();
+    auto boolean = pom::types::boolean();
+    auto integer = pom::types::integer();
 
-    std::string key = make_key(op_info.m_op, op_info.m_args);
+    using namespace std::placeholders;
+    m_ops[make_key('+', {real, real})] = std::bind(&OpTable::plus_real, this, _1, _2);
+    m_ops[make_key('-', {real, real})] = std::bind(&OpTable::minus_real, this, _1, _2);
+    m_ops[make_key('*', {real, real})] = std::bind(&OpTable::multiply_real, this, _1, _2);
+    m_ops[make_key('<', {real, real})] = std::bind(&OpTable::lt_real, this, _1, _2);
+    m_ops[make_key('>', {real, real})] = std::bind(&OpTable::gt_real, this, _1, _2);
 
-    auto fo = ops.m_ops.find(key);
-    if (fo == ops.m_ops.end()) {
+    m_ops[make_key('+', {integer, integer})] = std::bind(&OpTable::plus_int, this, _1, _2);
+    m_ops[make_key('-', {integer, integer})] = std::bind(&OpTable::minus_int, this, _1, _2);
+    m_ops[make_key('*', {integer, integer})] = std::bind(&OpTable::multiply_int, this, _1, _2);
+    m_ops[make_key('+', {integer, integer})] = std::bind(&OpTable::plus_int, this, _1, _2);
+    m_ops[make_key('-', {integer, integer})] = std::bind(&OpTable::minus_int, this, _1, _2);
+    m_ops[make_key('<', {integer, integer})] = std::bind(&OpTable::lt_int, this, _1, _2);
+    m_ops[make_key('>', {integer, integer})] = std::bind(&OpTable::gt_int, this, _1, _2);
+
+    m_ops[make_key("or", {boolean, boolean})]  = std::bind(&OpTable::or_bool, this, _1, _2);
+    m_ops[make_key("and", {boolean, boolean})] = std::bind(&OpTable::and_bool, this, _1, _2);
+}
+
+tl::expected<llvm::Value*, Err> OpTable::generate(
+    llvm::IRBuilderBase* builder, const pom::ops::OpInfo& op_info,
+    const std::vector<ValueGenerator>& operands) const {
+    auto key = make_key(op_info.m_op, op_info.m_args);
+    auto fo  = m_ops.find(key);
+    if (fo == m_ops.end()) {
         return tl::make_unexpected(Err{fmt::format("invalid binary operator {0}", key)});
     }
-    return fo->second(builder, operands);
+
+    auto values = execute(operands, builder);
+    if (!values) {
+        return tl::make_unexpected(values.error());
+    }
+
+    return fo->second(builder, *values);
+}
+
+tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase*               builder,
+                                           const pom::ops::OpInfo&            op_info,
+                                           const std::vector<ValueGenerator>& operands) {
+    static const OpTable ops;
+    return ops.generate(builder, op_info, operands);
+}
+
+tl::expected<std::vector<llvm::Value*>, Err> execute(const std::vector<ValueGenerator>& operands,
+                                                     llvm::IRBuilderBase*               builder) {
+    std::vector<llvm::Value*> values;
+    for (auto& vf : operands) {
+        auto v = vf(builder);
+        if (!v) {
+            return tl::make_unexpected(v.error());
+        }
+        assert(*v);
+        values.push_back(*v);
+    }
+    return values;
 }
 
 }  // namespace basicoperators

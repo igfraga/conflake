@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
     app.add_argument("-f", "--file");
 
     try {
-      app.parse_args(argc, argv);
+        app.parse_args(argc, argv);
     } catch (const std::runtime_error& err) {
         std::cout << err.what() << std::endl;
         std::cout << app;
@@ -77,10 +77,10 @@ int main(int argc, char** argv) {
 
     if (!err) {
         std::cout << "Error: " << err.error().m_desc << std::endl;
+    } else {
+        std::cout << "====================" << std::endl;
+        std::cout << "Evaluated: " << *err << std::endl;
+        std::cout << "====================" << std::endl;
     }
-    std::cout << "====================" << std::endl;
-    std::cout << "Evaluated: " << *err << std::endl;
-    std::cout << "====================" << std::endl;
-
     return 0;
 }

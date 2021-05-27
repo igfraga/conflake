@@ -172,14 +172,21 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::BinaryExpr& e, pom::ast::ExprId) {
-    auto lv = codegen(program, context, *e.m_lhs);
-    if (!lv) {
-        return lv;
-    }
-    auto lr = codegen(program, context, *e.m_rhs);
-    if (!lr) {
-        return lr;
-    }
+    using BErr  = pol::basicoperators::Err;
+    auto lv_gen = [&](llvm::IRBuilderBase*) -> tl::expected<llvm::Value*, BErr> {
+        auto v = codegen(program, context, *e.m_lhs);
+        if (!v) {
+            return tl::make_unexpected(BErr{v.error().m_desc});
+        }
+        return v->m_value;
+    };
+    auto rv_gen = [&](llvm::IRBuilderBase*) -> tl::expected<llvm::Value*, BErr> {
+        auto v = codegen(program, context, *e.m_rhs);
+        if (!v) {
+            return tl::make_unexpected(BErr{v.error().m_desc});
+        }
+        return v->m_value;
+    };
 
     auto lv_ty = context.expressionType(e.m_lhs->m_id);
     auto rv_ty = context.expressionType(e.m_rhs->m_id);
@@ -196,8 +203,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return tl::make_unexpected(pom_should_have_caught(op_info.error()));
     }
 
-    auto bop = pol::basicoperators::buildBinOp(program.m_builder.get(), *op_info,
-                                               {lv->m_value, lr->m_value});
+    auto bop = basicoperators::buildBinOp(program.m_builder.get(), *op_info, {lv_gen, rv_gen});
     if (!bop) {
         return tl::make_unexpected(pom_should_have_caught(bop.error()));
     }
@@ -206,14 +212,20 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::Call& c, pom::ast::ExprId) {
-    std::vector<llvm::Value*> args;
-    std::vector<pom::TypeCSP> arg_types;
+    using BErr = pol::basicoperators::Err;
+
+    std::vector<basicoperators::ValueGenerator> arg_gen;
+    std::vector<pom::TypeCSP>                   arg_types;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
-        auto aa = codegen(program, context, *c.m_args[i]);
-        if (!aa) {
-            return aa;
-        }
-        args.push_back(aa->m_value);
+        auto generator = [&program, &context, &c,
+                          i](llvm::IRBuilderBase*) -> tl::expected<llvm::Value*, BErr> {
+            auto aa = codegen(program, context, *c.m_args[i]);
+            if (!aa) {
+                return tl::make_unexpected(BErr{aa.error().m_desc});
+            }
+            return aa->m_value;
+        };
+        arg_gen.push_back(generator);
 
         auto a_type = context.expressionType(c.m_args[i]->m_id);
         if (!a_type) {
@@ -224,14 +236,13 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
     auto builtin = pom::ops::getBuiltin(c.m_function, arg_types);
     if (builtin) {
-        auto op = basicoperators::buildBinOp(program.m_builder.get(), *builtin, args);
+        auto op = basicoperators::buildBinOp(program.m_builder.get(), *builtin, arg_gen);
         if (!op) {
             return tl::make_unexpected(Err{op.error().m_desc});
         }
         return DecValue{*op};
     }
 
-    // Look up the name in the global module table.
     llvm::Function* function = program.m_module->getFunction(c.m_function);
     if (!function) {
         return tl::make_unexpected(Err{"Unknown function referenced"});
@@ -242,7 +253,12 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
                                                    function->arg_size(), c.m_args.size())});
     }
 
-    return DecValue{program.m_builder->CreateCall(function, args, "calltmp")};
+    auto args = pol::basicoperators::execute(arg_gen, program.m_builder.get());
+    if (!args) {
+        return tl::make_unexpected(Err{args.error().m_desc});
+    }
+
+    return DecValue{program.m_builder->CreateCall(function, *args, "calltmp")};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
