@@ -8,7 +8,8 @@ namespace pol {
 
 namespace basicoperators {
 
-std::string make_key(const pom::ops::OpKey& op, std::vector<pom::TypeCSP> operands) {
+std::string make_key(const pom::ops::OpKey& op, std::vector<pom::TypeCSP> operands)
+{
     std::ostringstream oss;
     if (std::holds_alternative<char>(op)) {
         oss << "op" << std::get<char>(op) << "__";
@@ -21,7 +22,8 @@ std::string make_key(const pom::ops::OpKey& op, std::vector<pom::TypeCSP> operan
     return oss.str();
 }
 
-class OpTable {
+class OpTable
+{
    public:
     OpTable();
 
@@ -30,56 +32,82 @@ class OpTable {
                                              const std::vector<ValueGenerator>& operands) const;
 
    private:
-    llvm::Value* plus_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+    llvm::Value* plus_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateAdd(vs[0], vs[1], "addtmp");
     }
-    llvm::Value* minus_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* minus_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateSub(vs[0], vs[1], "subtmp");
     }
-    llvm::Value* multiply_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* multiply_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateMul(vs[0], vs[1], "multmp");
     }
-    llvm::Value* plus_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* plus_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateFAdd(vs[0], vs[1], "addtmp");
     }
-    llvm::Value* minus_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* minus_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateFSub(vs[0], vs[1], "subtmp");
     }
-    llvm::Value* multiply_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* multiply_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateFMul(vs[0], vs[1], "multmp");
     }
 
-    llvm::Value* lt_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+    llvm::Value* lt_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateFCmpULT(vs[0], vs[1], "lttmp");
     }
-    llvm::Value* gt_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* gt_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateFCmpUGT(vs[0], vs[1], "gttmp");
     }
-    llvm::Value* lt_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* lt_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateICmpULT(vs[0], vs[1], "lttmp");
     }
-    llvm::Value* gt_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* gt_int(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateICmpUGT(vs[0], vs[1], "gttmp");
     }
 
-    llvm::Value* or_bool(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+    llvm::Value* or_bool(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateOr(vs[0], vs[1], "ortmp");
     }
-    llvm::Value* and_bool(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
+
+    llvm::Value* and_bool(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs)
+    {
         return builder->CreateAnd(vs[0], vs[1], "andtmp");
     }
+
     tl::expected<llvm::Value*, Err> if_real(llvm::IRBuilderBase*               builder,
-                                            const std::vector<ValueGenerator>& vs) {
+                                            const std::vector<ValueGenerator>& vs)
+    {
         return if_generic(builder, vs, llvm::Type::getDoubleTy(builder->getContext()));
     }
+
     tl::expected<llvm::Value*, Err> if_int(llvm::IRBuilderBase*               builder,
-                                            const std::vector<ValueGenerator>& vs) {
+                                           const std::vector<ValueGenerator>& vs)
+    {
         return if_generic(builder, vs, llvm::Type::getInt64Ty(builder->getContext()));
     }
 
     tl::expected<llvm::Value*, Err> if_generic(llvm::IRBuilderBase*               builder,
                                                const std::vector<ValueGenerator>& vs,
-                                               llvm::Type*                        ty) {
+                                               llvm::Type*                        ty)
+    {
         auto& ctx = builder->getContext();
         auto  bv  = vs[0](builder);
         if (!bv) {
@@ -117,8 +145,7 @@ class OpTable {
 
         fn->getBasicBlockList().push_back(merge_bb);
         builder->SetInsertPoint(merge_bb);
-        llvm::PHINode* phi =
-            builder->CreatePHI(ty, 2, "iftmp");
+        llvm::PHINode* phi = builder->CreatePHI(ty, 2, "iftmp");
 
         phi->addIncoming(*lv, then_bb);
         phi->addIncoming(*rv, else_bb);
@@ -134,7 +161,8 @@ class OpTable {
     std::map<std::string, AdvBinaryOpBuilder> m_adv_ops;
 };
 
-OpTable::OpTable() {
+OpTable::OpTable()
+{
     auto real    = pom::types::real();
     auto boolean = pom::types::boolean();
     auto integer = pom::types::integer();
@@ -158,12 +186,14 @@ OpTable::OpTable() {
     m_ops[make_key("and", {boolean, boolean})] = std::bind(&OpTable::and_bool, this, _1, _2);
 
     m_adv_ops[make_key("if", {boolean, real, real})] = std::bind(&OpTable::if_real, this, _1, _2);
-    m_adv_ops[make_key("if", {boolean, integer, integer})] = std::bind(&OpTable::if_int, this, _1, _2);
+    m_adv_ops[make_key("if", {boolean, integer, integer})] =
+        std::bind(&OpTable::if_int, this, _1, _2);
 }
 
-tl::expected<llvm::Value*, Err> OpTable::generate(
-    llvm::IRBuilderBase* builder, const pom::ops::OpInfo& op_info,
-    const std::vector<ValueGenerator>& operands) const {
+tl::expected<llvm::Value*, Err> OpTable::generate(llvm::IRBuilderBase*               builder,
+                                                  const pom::ops::OpInfo&            op_info,
+                                                  const std::vector<ValueGenerator>& operands) const
+{
     auto key = make_key(op_info.m_op, op_info.m_args);
     auto fo  = m_ops.find(key);
     if (fo == m_ops.end()) {
@@ -185,13 +215,15 @@ tl::expected<llvm::Value*, Err> OpTable::generate(
 
 tl::expected<llvm::Value*, Err> buildBinOp(llvm::IRBuilderBase*               builder,
                                            const pom::ops::OpInfo&            op_info,
-                                           const std::vector<ValueGenerator>& operands) {
+                                           const std::vector<ValueGenerator>& operands)
+{
     static const OpTable ops;
     return ops.generate(builder, op_info, operands);
 }
 
 tl::expected<std::vector<llvm::Value*>, Err> execute(const std::vector<ValueGenerator>& operands,
-                                                     llvm::IRBuilderBase*               builder) {
+                                                     llvm::IRBuilderBase*               builder)
+{
     std::vector<llvm::Value*> values;
     for (auto& vf : operands) {
         auto v = vf(builder);

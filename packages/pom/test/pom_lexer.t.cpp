@@ -9,7 +9,8 @@
 
 #include <iostream>
 
-TEST_CASE("Test simple lexer cases", "[lexer][foo]") {
+TEST_CASE("Test simple lexer cases", "[lexer][foo]")
+{
     using namespace pom::lexer;
     using namespace pom::literals;
     using Ident = Identifier;
@@ -34,7 +35,8 @@ TEST_CASE("Test simple lexer cases", "[lexer][foo]") {
     }
 }
 
-TEST_CASE("Test lexer on files", "[lexer]") {
+TEST_CASE("Test lexer on files", "[lexer]")
+{
     using namespace pom::lexer;
     using namespace pom::literals;
     using Ident = Identifier;

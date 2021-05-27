@@ -9,7 +9,8 @@
 
 #include <filesystem>
 
-TEST_CASE("Whole pipeline test", "[whole][jit]") {
+TEST_CASE("Whole pipeline test", "[whole][jit]")
+{
     using namespace pom::lexer;
     using Res = pol::codegen::Result;
 

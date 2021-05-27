@@ -12,33 +12,39 @@ namespace pol {
 
 Jit::Jit()
     : m_resolver(llvm::orc::createLegacyLookupResolver(
-          m_es, [this](llvm::StringRef Name) { return findMangledSymbol(std::string(Name)); },
+          m_es,
+          [this](llvm::StringRef Name) { return findMangledSymbol(std::string(Name)); },
           [](llvm::Error Err) { cantFail(std::move(Err), "lookupFlags failed"); })),
       m_tm(llvm::EngineBuilder().selectTarget()),
       m_dl(m_tm->createDataLayout()),
-      m_object_layer(llvm::AcknowledgeORCv1Deprecation, m_es,
+      m_object_layer(llvm::AcknowledgeORCv1Deprecation,
+                     m_es,
                      [this](ModuleKey) {
                          return ObjLayerT::Resources{std::make_shared<llvm::SectionMemoryManager>(),
                                                      m_resolver};
                      }),
-      m_compile_layer(llvm::AcknowledgeORCv1Deprecation, m_object_layer,
-                      llvm::orc::SimpleCompiler(*m_tm)) {
+      m_compile_layer(
+          llvm::AcknowledgeORCv1Deprecation, m_object_layer, llvm::orc::SimpleCompiler(*m_tm))
+{
     llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
 }
 
-Jit::ModuleKey Jit::addModule(std::unique_ptr<llvm::Module> mod) {
+Jit::ModuleKey Jit::addModule(std::unique_ptr<llvm::Module> mod)
+{
     auto key = m_es.allocateVModule();
     cantFail(m_compile_layer.addModule(key, std::move(mod)));
     m_module_keys.push_back(key);
     return key;
 }
 
-void Jit::removeModule(ModuleKey key) {
+void Jit::removeModule(ModuleKey key)
+{
     m_module_keys.erase(llvm::find(m_module_keys, key));
     cantFail(m_compile_layer.removeModule(key));
 }
 
-std::string Jit::mangle(const std::string& name) {
+std::string Jit::mangle(const std::string& name)
+{
     std::string mangled_name;
     {
         llvm::raw_string_ostream mangled_name_stream(mangled_name);
@@ -47,7 +53,8 @@ std::string Jit::mangle(const std::string& name) {
     return mangled_name;
 }
 
-llvm::JITSymbol Jit::findMangledSymbol(const std::string& name) {
+llvm::JITSymbol Jit::findMangledSymbol(const std::string& name)
+{
 #ifdef _WIN32
     // The symbol lookup of ObjectLinkingLayer uses the SymbolRef::SF_Exported
     // flag to decide whether a symbol will be visible or not, when we call

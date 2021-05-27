@@ -8,21 +8,24 @@ namespace pom {
 
 namespace types {
 
-class RealType : public Type {
+class RealType : public Type
+{
    public:
     std::string description() const { return "real"; }
 
     std::string mangled() const { return "real"; }
 };
 
-class IntegerType : public Type {
+class IntegerType : public Type
+{
    public:
     std::string description() const { return "integer"; }
 
     std::string mangled() const { return "integer"; }
 };
 
-class BooleanType : public Type {
+class BooleanType : public Type
+{
    public:
     std::string description() const { return "boolean"; }
 

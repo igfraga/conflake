@@ -8,7 +8,8 @@ namespace pom {
 
 namespace types {
 
-TypeCSP build(const ast::TypeDesc& type) {
+TypeCSP build(const ast::TypeDesc& type)
+{
     if (type.m_template_args.empty()) {
         if (type.m_name == "real") {
             return real();

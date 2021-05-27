@@ -1,14 +1,15 @@
 
-#include <pom_lexer.h>
-#include <pom_parser.h>
 #include <pom_ast.h>
 #include <pom_astbuilder.h>
+#include <pom_lexer.h>
+#include <pom_parser.h>
 
 #include <catch2/catch.hpp>
 
 #include <filesystem>
 
-TEST_CASE("Test parser files", "[parser]") {
+TEST_CASE("Test parser files", "[parser]")
+{
     using namespace pom::lexer;
 
     // clang-format off
@@ -46,7 +47,8 @@ TEST_CASE("Test parser files", "[parser]") {
     }
 }
 
-TEST_CASE("Test parser samples", "[parser]") {
+TEST_CASE("Test parser samples", "[parser]")
+{
     using namespace pom;
     using namespace pom::ast::builder;
 
@@ -75,14 +77,14 @@ TEST_CASE("Test parser samples", "[parser]") {
 
     for (auto& [text, expected] : ppp) {
         std::istringstream iss(text);
-        auto tokens = lexer::lex(iss);
+        auto               tokens = lexer::lex(iss);
         REQUIRE(tokens);
 
         auto res = parser::parse(*tokens);
         REQUIRE(res);
 
         REQUIRE(res->size() == expected.size());
-        for(auto i = 0ull; i < res->size(); i++) {
+        for (auto i = 0ull; i < res->size(); i++) {
             auto func = std::get<ast::Function>((*res)[i]);
             REQUIRE(func == expected[i]);
 

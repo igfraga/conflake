@@ -14,7 +14,8 @@ namespace pom {
 
 namespace parser {
 
-struct Err {
+struct Err
+{
     std::string m_desc;
 };
 

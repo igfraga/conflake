@@ -12,7 +12,8 @@ namespace ops {
 
 namespace {
 
-std::vector<OpInfo> makeOps() {
+std::vector<OpInfo> makeOps()
+{
     auto real    = types::real();
     auto boolean = types::boolean();
     auto integer = types::integer();
@@ -41,7 +42,8 @@ std::vector<OpInfo> makeOps() {
     return ops;
 };  // namespace ops
 
-std::multimap<OpKey, OpInfo> byKeyOps(const std::vector<OpInfo>& ops) {
+std::multimap<OpKey, OpInfo> byKeyOps(const std::vector<OpInfo>& ops)
+{
     std::multimap<OpKey, OpInfo> byk;
     for (auto& op : ops) {
         byk.insert({op.m_op, op});
@@ -49,18 +51,21 @@ std::multimap<OpKey, OpInfo> byKeyOps(const std::vector<OpInfo>& ops) {
     return byk;
 }
 
-bool matches(const OpInfo& func, const std::vector<TypeCSP>& args) {
+bool matches(const OpInfo& func, const std::vector<TypeCSP>& args)
+{
     return std::equal(args.begin(), args.end(), func.m_args.begin(),
                       [](auto& x, auto& y) { return *x == *y; });
 }
 
-std::string toStr(const OpKey& key) {
+std::string toStr(const OpKey& key)
+{
     return std::visit([](auto& x) { return fmt::format("{}", x); }, key);
 }
 
 }  // namespace
 
-tl::expected<OpInfo, Err> getBuiltin(OpKey op_key, const std::vector<TypeCSP>& operands) {
+tl::expected<OpInfo, Err> getBuiltin(OpKey op_key, const std::vector<TypeCSP>& operands)
+{
     static std::vector<OpInfo>          ops   = makeOps();
     static std::multimap<OpKey, OpInfo> byKey = byKeyOps(ops);
 

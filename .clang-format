@@ -9,3 +9,6 @@ AlignConsecutiveDeclarations: true
 DerivePointerAlignment: false
 IncludeBlocks: Preserve
 PointerAlignment: Left
+BinPackParameters: false
+AlignAfterOpenBracket: true
+BreakBeforeBraces: Mozilla

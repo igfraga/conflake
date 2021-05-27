@@ -16,7 +16,8 @@ namespace pom {
 
 namespace lexer {
 
-inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar) {
+inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar)
+{
     auto nextch = [&ist]() -> char { return char(ist.get()); };
 
     // Skip any whitespace.
@@ -33,14 +34,11 @@ inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar) {
 
         if (identifier == "def") {
             return Keyword::k_def;
-        }
-        else if (identifier == "extern") {
+        } else if (identifier == "extern") {
             return Keyword::k_extern;
-        }
-        else if (identifier == "True") {
+        } else if (identifier == "True") {
             return literals::Boolean{true};
-        }
-        else if (identifier == "False") {
+        } else if (identifier == "False") {
             return literals::Boolean{false};
         }
         return Identifier{identifier};
@@ -91,7 +89,8 @@ inline tl::expected<Token, Err> nexttok(std::istream& ist, char& lastChar) {
     return tok;
 }
 
-tl::expected<std::vector<Token>, Err> lex(std::istream& ist) {
+tl::expected<std::vector<Token>, Err> lex(std::istream& ist)
+{
     std::vector<Token> tokens;
     char               lastChar = ' ';
     while (1) {
@@ -112,7 +111,8 @@ tl::expected<std::vector<Token>, Err> lex(std::istream& ist) {
     return tokens;
 }
 
-tl::expected<std::vector<Token>, Err> lex(const std::filesystem::path& path) {
+tl::expected<std::vector<Token>, Err> lex(const std::filesystem::path& path)
+{
     std::ifstream fs(path, std::ios_base::in);
     if (!fs.good()) {
         return tl::make_unexpected(Err{"Error opening file"});
@@ -122,7 +122,8 @@ tl::expected<std::vector<Token>, Err> lex(const std::filesystem::path& path) {
 
 struct Printer
 {
-    std::string operator()(const Keyword& kw) {
+    std::string operator()(const Keyword& kw)
+    {
         if (kw == Keyword::k_def) {
             return "def";
         } else if (kw == Keyword::k_extern) {
@@ -131,30 +132,29 @@ struct Printer
             return "<<unknown keyword>>";
         }
     }
-    std::string operator()(const Operator& op) {
-        return fmt::format("op: {0}", op.m_op);
-    }
-    std::string operator()(const Comment&) {
-        return "comment";
-    }
-    std::string operator()(const Eof&) {
-        return "EOF";
-    }
-    std::string operator()(const Identifier& id) {
+    std::string operator()(const Operator& op) { return fmt::format("op: {0}", op.m_op); }
+    std::string operator()(const Comment&) { return "comment"; }
+    std::string operator()(const Eof&) { return "EOF"; }
+    std::string operator()(const Identifier& id)
+    {
         return fmt::format("identifier: {0}", id.m_name);
     }
-    std::string operator()(const literals::Integer& val) {
+    std::string operator()(const literals::Integer& val)
+    {
         return fmt::format("int: {0}", val.m_val);
     }
-    std::string operator()(const literals::Real& val) {
+    std::string operator()(const literals::Real& val)
+    {
         return fmt::format("real: {0}", val.m_val);
     }
-    std::string operator()(const literals::Boolean& val) {
+    std::string operator()(const literals::Boolean& val)
+    {
         return fmt::format("bool: {0}", val.m_val);
     }
 };
 
-std::string toString(const Token& token) {
+std::string toString(const Token& token)
+{
     Printer pr;
     return std::visit(pr, token);
 }

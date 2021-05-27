@@ -13,7 +13,8 @@
 
 namespace pol {
 
-class Jit {
+class Jit
+{
    public:
     using ObjLayerT     = llvm::orc::LegacyRTDyldObjectLinkingLayer;
     using CompileLayerT = llvm::orc::LegacyIRCompileLayer<ObjLayerT, llvm::orc::SimpleCompiler>;

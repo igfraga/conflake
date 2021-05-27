@@ -8,7 +8,8 @@ namespace pom {
 
 namespace types {
 
-class List : public Type {
+class List : public Type
+{
    public:
     List(TypeCSP ty) : m_contained_type(std::move(ty)) {}
 

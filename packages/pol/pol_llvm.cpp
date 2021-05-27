@@ -19,20 +19,28 @@ using namespace llvm;
 
 namespace pol {
 
-void initLlvm() {
+void initLlvm()
+{
     llvm::InitializeNativeTarget();
     llvm::InitializeNativeTargetAsmPrinter();
     llvm::InitializeNativeTargetAsmParser();
 }
 
-bool isConstantOne(Value* val) {
+bool isConstantOne(Value* val)
+{
     assert(val && "IsConstantOne does not work with nullptr val");
     const ConstantInt* CVal = dyn_cast<ConstantInt>(val);
     return CVal && CVal->isOne();
 }
 
-Value* createMalloc(IRBuilderBase* builder, Type* int_type, Type* alloc_ty, Value* alloc_size,
-                    Value* array_size, Function* malloc_fun, const Twine& name) {
+Value* createMalloc(IRBuilderBase* builder,
+                    Type*          int_type,
+                    Type*          alloc_ty,
+                    Value*         alloc_size,
+                    Value*         array_size,
+                    Function*      malloc_fun,
+                    const Twine&   name)
+{
     assert(builder);
     // malloc(type) becomes:
     //       bitcast (i8* malloc(typeSize)) to type*

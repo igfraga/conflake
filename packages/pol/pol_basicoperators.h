@@ -14,7 +14,8 @@ namespace pol {
 
 namespace basicoperators {
 
-struct Err {
+struct Err
+{
     std::string m_desc;
 };
 

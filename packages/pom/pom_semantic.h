@@ -11,11 +11,13 @@ namespace pom {
 
 namespace semantic {
 
-struct Err {
+struct Err
+{
     std::string m_desc;
 };
 
-struct Context {
+struct Context
+{
     std::map<std::string, TypeCSP> m_variables;
     std::map<ast::ExprId, TypeCSP> m_expressions;
 
@@ -24,13 +26,15 @@ struct Context {
     tl::expected<TypeCSP, Err> variableType(std::string_view name) const;
 };
 
-struct Signature {
+struct Signature
+{
     std::string                                  m_name;
     std::vector<std::pair<TypeCSP, std::string>> m_args;
     TypeCSP                                      m_return_type;
 };
 
-struct Function {
+struct Function
+{
     Signature  m_sig;
     ast::ExprP m_code;
     Context    m_context;

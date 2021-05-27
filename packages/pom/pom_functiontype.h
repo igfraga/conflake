@@ -8,7 +8,8 @@ namespace pom {
 
 namespace types {
 
-class Function : public Type {
+class Function : public Type
+{
    public:
     std::string description() const final;
 

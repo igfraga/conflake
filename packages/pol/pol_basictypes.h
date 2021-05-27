@@ -6,13 +6,14 @@
 namespace llvm {
 class LLVMContext;
 class Type;
-}
+}  // namespace llvm
 
 namespace pol {
 
 namespace basictypes {
 
-struct Err {
+struct Err
+{
     std::string m_desc;
 };
 

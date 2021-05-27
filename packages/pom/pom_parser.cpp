@@ -16,7 +16,8 @@ using TokIt = std::vector<lexer::Token>::const_iterator;
 
 namespace {
 
-int tokPrecedence(const lexer::Token& tok) {
+int tokPrecedence(const lexer::Token& tok)
+{
     static std::map<char, int> binopPrecedence;
     if (binopPrecedence.empty()) {
         // Install standard binary operators.
@@ -38,7 +39,8 @@ int tokPrecedence(const lexer::Token& tok) {
     return fo->second;
 }
 
-struct ParserContext {
+struct ParserContext
+{
     ast::ExprId m_current_id = 0;
 
     ast::ExprId nextId() { return m_current_id++; }
@@ -47,7 +49,8 @@ struct ParserContext {
 expected<ast::ExprP> parseExpression(TokIt& tok_it, ParserContext& ctx);
 
 /// parenexpr ::= '(' expression ')'
-expected<ast::ExprP> parseParenExpr(TokIt& tok_it, ParserContext& ctx) {
+expected<ast::ExprP> parseParenExpr(TokIt& tok_it, ParserContext& ctx)
+{
     ++tok_it;  // eat (.
     auto v = parseExpression(tok_it, ctx);
     if (!v) {
@@ -61,7 +64,8 @@ expected<ast::ExprP> parseParenExpr(TokIt& tok_it, ParserContext& ctx) {
     return v;
 }
 
-expected<ast::ExprP> parseListExpr(TokIt& tok_it, ParserContext& ctx) {
+expected<ast::ExprP> parseListExpr(TokIt& tok_it, ParserContext& ctx)
+{
     ++tok_it;  // eat [.
 
     ast::ListExpr li;
@@ -79,7 +83,8 @@ expected<ast::ExprP> parseListExpr(TokIt& tok_it, ParserContext& ctx) {
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
-expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it, ParserContext& ctx) {
+expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it, ParserContext& ctx)
+{
     std::vector<ast::ExprP> args;
 
     auto ident = std::get_if<lexer::Identifier>(&(*tok_it));
@@ -139,7 +144,8 @@ expected<ast::ExprP> parseIdentifierExpr(TokIt& tok_it, ParserContext& ctx) {
 ///   ::= identifierexpr
 ///   ::= numberexpr
 ///   ::= parenexpr
-expected<ast::ExprP> parsePrimary(TokIt& tok_it, ParserContext& ctx) {
+expected<ast::ExprP> parsePrimary(TokIt& tok_it, ParserContext& ctx)
+{
     if (lexer::isOpenParen(*tok_it)) {
         return parseParenExpr(tok_it, ctx);
     } else if (lexer::isOpenBracket(*tok_it)) {
@@ -165,8 +171,8 @@ expected<ast::ExprP> parsePrimary(TokIt& tok_it, ParserContext& ctx) {
 
 /// binoprhs
 ///   ::= ('+' primary)*
-expected<ast::ExprP> parseBinOpRHS(int exprPrec, ast::ExprP lhs, TokIt& tok_it,
-                                   ParserContext& ctx) {
+expected<ast::ExprP> parseBinOpRHS(int exprPrec, ast::ExprP lhs, TokIt& tok_it, ParserContext& ctx)
+{
     // If this is a binop, find its precedence.
     while (true) {
         int tokPrec = tokPrecedence(*tok_it);
@@ -209,7 +215,8 @@ expected<ast::ExprP> parseBinOpRHS(int exprPrec, ast::ExprP lhs, TokIt& tok_it,
 /// expression
 ///   ::= primary binoprhs
 ///
-expected<ast::ExprP> parseExpression(TokIt& tok_it, ParserContext& ctx) {
+expected<ast::ExprP> parseExpression(TokIt& tok_it, ParserContext& ctx)
+{
     auto lhs = parsePrimary(tok_it, ctx);
     if (!lhs) {
         return lhs;
@@ -218,7 +225,8 @@ expected<ast::ExprP> parseExpression(TokIt& tok_it, ParserContext& ctx) {
     return parseBinOpRHS(0, std::move(*lhs), tok_it, ctx);
 }
 
-expected<ast::TypeDescCSP> parseType(TokIt& tok_it) {
+expected<ast::TypeDescCSP> parseType(TokIt& tok_it)
+{
     auto type_ident = std::get_if<lexer::Identifier>(&(*tok_it));
     if (!type_ident) {
         return tl::make_unexpected(
@@ -257,7 +265,8 @@ expected<ast::TypeDescCSP> parseType(TokIt& tok_it) {
 
 /// prototype
 ///   ::= id '(' id* ')'
-expected<ast::Signature> parsePrototype(TokIt& tok_it) {
+expected<ast::Signature> parsePrototype(TokIt& tok_it)
+{
     if (!std::holds_alternative<lexer::Identifier>(*tok_it)) {
         return tl::make_unexpected(Err{"Expected function name in prototype"});
     }
@@ -307,7 +316,8 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it) {
 }
 
 /// definition ::= 'def' prototype expression
-expected<ast::Function> parseDefinition(TokIt& tok_it, ParserContext& ctx) {
+expected<ast::Function> parseDefinition(TokIt& tok_it, ParserContext& ctx)
+{
     ++tok_it;  // eat def.
     auto proto = parsePrototype(tok_it);
     if (!proto) {
@@ -322,7 +332,8 @@ expected<ast::Function> parseDefinition(TokIt& tok_it, ParserContext& ctx) {
 }
 
 /// toplevelexpr ::= expression
-expected<ast::Function> parseTopLevelExpr(TokIt& tok_it, ParserContext& ctx) {
+expected<ast::Function> parseTopLevelExpr(TokIt& tok_it, ParserContext& ctx)
+{
     auto exp = parseExpression(tok_it, ctx);
     if (!exp) {
         return tl::unexpected(exp.error());
@@ -334,7 +345,8 @@ expected<ast::Function> parseTopLevelExpr(TokIt& tok_it, ParserContext& ctx) {
 }
 
 /// external ::= 'extern' prototype
-expected<ast::Signature> parseExtern(TokIt& tok_it, ParserContext&) {
+expected<ast::Signature> parseExtern(TokIt& tok_it, ParserContext&)
+{
     ++tok_it;  // eat extern.
     return parsePrototype(tok_it);
 }
@@ -342,7 +354,8 @@ expected<ast::Signature> parseExtern(TokIt& tok_it, ParserContext&) {
 }  // namespace
 
 /// top ::= definition | external | expression | ';'
-expected<TopLevel> parse(const std::vector<lexer::Token>& tokens) {
+expected<TopLevel> parse(const std::vector<lexer::Token>& tokens)
+{
     ParserContext parser_context;
     TopLevel      top_level;
     auto          tok_it = tokens.begin();
@@ -378,7 +391,8 @@ expected<TopLevel> parse(const std::vector<lexer::Token>& tokens) {
     return top_level;
 }
 
-std::ostream& print(std::ostream& ost, const TopLevelUnit& u) {
+std::ostream& print(std::ostream& ost, const TopLevelUnit& u)
+{
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;

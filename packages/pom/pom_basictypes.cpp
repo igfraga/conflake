@@ -3,8 +3,6 @@
 
 namespace pom {
 
-namespace types {
-
-}  // namespace types
+namespace types {}  // namespace types
 
 }  // namespace pom

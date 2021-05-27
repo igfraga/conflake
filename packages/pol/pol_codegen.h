@@ -8,11 +8,13 @@ namespace pol {
 
 namespace codegen {
 
-struct Err {
+struct Err
+{
     std::string m_desc;
 };
 
-struct Result {
+struct Result
+{
     std::variant<std::monostate, double, int64_t, bool> m_ev;
 
     bool operator==(const Result& other) const { return m_ev == other.m_ev; }

@@ -18,14 +18,16 @@ using ExprP = std::shared_ptr<const Expr>;
 
 using Literal = std::variant<literals::Boolean, literals::Integer, literals::Real>;
 
-struct Var {
+struct Var
+{
     std::string            m_name;
     std::optional<int64_t> m_subscript;
 
     bool operator==(const Var& other) const;
 };
 
-struct BinaryExpr {
+struct BinaryExpr
+{
     char  m_op;
     ExprP m_lhs;
     ExprP m_rhs;
@@ -33,20 +35,23 @@ struct BinaryExpr {
     bool operator==(const BinaryExpr& other) const;
 };
 
-struct Call {
+struct Call
+{
     std::string        m_function;
     std::vector<ExprP> m_args;
 
     bool operator==(const Call& other) const;
 };
 
-struct ListExpr {
+struct ListExpr
+{
     std::vector<ExprP> m_expressions;
 
     bool operator==(const ListExpr& other) const;
 };
 
-struct TypeDesc {
+struct TypeDesc
+{
     std::string                                  m_name;
     std::vector<std::shared_ptr<const TypeDesc>> m_template_args;
 
@@ -55,14 +60,16 @@ struct TypeDesc {
 
 using TypeDescCSP = std::shared_ptr<const TypeDesc>;
 
-struct Arg {
+struct Arg
+{
     TypeDescCSP m_type;
     std::string m_name;
 
     bool operator==(const Arg& other) const;
 };
 
-struct Signature {
+struct Signature
+{
     std::string      m_name;
     std::vector<Arg> m_args;
     TypeDescCSP      m_ret_type;
@@ -70,7 +77,8 @@ struct Signature {
     bool operator==(const Signature& other) const;
 };
 
-struct Function {
+struct Function
+{
     Signature m_sig;
     ExprP     m_code;
 
@@ -79,7 +87,8 @@ struct Function {
 
 using ExprId = int64_t;
 
-struct Expr {
+struct Expr
+{
     explicit Expr(Literal val, int64_t id) : m_val(std::move(val)), m_id(id) {}
     explicit Expr(Var val, int64_t id) : m_val(std::move(val)), m_id(id) {}
     explicit Expr(ListExpr val, int64_t id) : m_val(std::move(val)), m_id(id) {}

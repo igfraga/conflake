@@ -6,7 +6,8 @@ namespace pom {
 
 namespace types {
 
-std::string Function::description() const {
+std::string Function::description() const
+{
     std::ostringstream oss;
     oss << "(";
     for (auto& arg : m_arg_types) {
@@ -16,7 +17,8 @@ std::string Function::description() const {
     return oss.str();
 }
 
-std::string Function::mangled() const {
+std::string Function::mangled() const
+{
     std::ostringstream oss;
     oss << "__function__";
     for (auto& arg : m_arg_types) {
@@ -26,7 +28,8 @@ std::string Function::mangled() const {
     return oss.str();
 }
 
-tl::expected<TypeCSP, TypeError> Function::callable(const std::vector<TypeCSP>& arg_types) const {
+tl::expected<TypeCSP, TypeError> Function::callable(const std::vector<TypeCSP>& arg_types) const
+{
     auto is_callable = std::equal(arg_types.begin(), arg_types.end(), m_arg_types.begin(),
                                   [](auto& a, auto& b) { return *a == *b; });
     if (!is_callable) {

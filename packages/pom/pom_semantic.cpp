@@ -21,21 +21,25 @@ namespace {
 
 tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, Context& context);
 
-tl::expected<TypeCSP, Err> calculateType(const literals::Boolean&, Context&) {
+tl::expected<TypeCSP, Err> calculateType(const literals::Boolean&, Context&)
+{
     return types::boolean();
 }
 
-tl::expected<TypeCSP, Err> calculateType(const literals::Integer&, Context&) {
+tl::expected<TypeCSP, Err> calculateType(const literals::Integer&, Context&)
+{
     return types::integer();
 }
 
 tl::expected<TypeCSP, Err> calculateType(const literals::Real&, Context&) { return types::real(); }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Literal& lit, Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Literal& lit, Context& context)
+{
     return std::visit([&](auto& x) { return calculateType(x, context); }, lit);
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, Context& context)
+{
     auto found = context.m_variables.find(var.m_name);
     if (found == context.m_variables.end()) {
         return tl::make_unexpected(
@@ -48,7 +52,8 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Var& var, Context& context) 
     return ty;
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, Context& context)
+{
     TypeCSP ty;
     for (auto& expr : li.m_expressions) {
         auto res = calculateType(*expr, context);
@@ -74,7 +79,8 @@ tl::expected<TypeCSP, Err> calculateType(const ast::ListExpr& li, Context& conte
     return std::make_shared<types::List>(ty);
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, Context& context)
+{
     auto lhs_type = calculateType(*expr.m_lhs, context);
     if (!lhs_type) {
         return lhs_type;
@@ -98,7 +104,8 @@ tl::expected<TypeCSP, Err> calculateType(const ast::BinaryExpr& expr, Context& c
     return op->m_ret_type;
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, Context& context)
+{
     std::vector<TypeCSP> arg_types;
     for (auto& arg : call.m_args) {
         auto arg_ty = calculateType(*arg, context);
@@ -133,11 +140,13 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, Context& context
     return *ret_type;
 }
 
-tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, Context& context) {
+tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, Context& context)
+{
     return std::visit([&](auto& x) { return calculateType(x, context); }, expr.m_val);
 }
 
-TypeCSP signatureType(const Signature& sig) {
+TypeCSP signatureType(const Signature& sig)
+{
     types::Function fun;
     fun.m_arg_types.resize(sig.m_args.size());
     std::transform(sig.m_args.begin(), sig.m_args.end(), fun.m_arg_types.begin(),
@@ -150,7 +159,8 @@ TypeCSP signatureType(const Signature& sig) {
 
 TypeCSP Function::type() const { return signatureType(m_sig); }
 
-tl::expected<Signature, Err> analyze(const ast::Signature& sig, Context&) {
+tl::expected<Signature, Err> analyze(const ast::Signature& sig, Context&)
+{
     Signature sem_sig;
     sem_sig.m_name = sig.m_name;
     for (auto& arg : sig.m_args) {
@@ -166,7 +176,8 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, Context&) {
     return sem_sig;
 }
 
-tl::expected<Function, Err> analyze(const ast::Function& function, Context& outer_context) {
+tl::expected<Function, Err> analyze(const ast::Function& function, Context& outer_context)
+{
     auto sig = analyze(function.m_sig, outer_context);
     if (!sig) {
         return tl::make_unexpected(sig.error());
@@ -206,7 +217,8 @@ tl::expected<Function, Err> analyze(const ast::Function& function, Context& oute
     return Function{*sig, function.m_code, context};
 }
 
-tl::expected<TopLevelUnit, Err> analyzeExtern(const ast::Signature& extrn, Context& context) {
+tl::expected<TopLevelUnit, Err> analyzeExtern(const ast::Signature& extrn, Context& context)
+{
     if (!extrn.m_ret_type) {
         return tl::make_unexpected(
             Err{fmt::format("extern function {0} does not specify return type", extrn.m_name)});
@@ -221,7 +233,8 @@ tl::expected<TopLevelUnit, Err> analyzeExtern(const ast::Signature& extrn, Conte
     return *sig;
 }
 
-tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
+tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level)
+{
     Context  context;
     TopLevel semantic_top_level;
 
@@ -247,7 +260,8 @@ tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
     return semantic_top_level;
 }
 
-tl::expected<TypeCSP, Err> Context::expressionType(ast::ExprId id) const {
+tl::expected<TypeCSP, Err> Context::expressionType(ast::ExprId id) const
+{
     auto fo = m_expressions.find(id);
     if (fo == m_expressions.end()) {
         return tl::make_unexpected(Err{fmt::format("Expression id not found: {0}", id)});
@@ -255,7 +269,8 @@ tl::expected<TypeCSP, Err> Context::expressionType(ast::ExprId id) const {
     return fo->second;
 }
 
-tl::expected<TypeCSP, Err> Context::variableType(std::string_view name) const {
+tl::expected<TypeCSP, Err> Context::variableType(std::string_view name) const
+{
     auto fo = m_variables.find(std::string(name));
     if (fo == m_variables.end()) {
         return tl::make_unexpected(Err{fmt::format("Variable not found: {0}", name)});
@@ -263,7 +278,8 @@ tl::expected<TypeCSP, Err> Context::variableType(std::string_view name) const {
     return fo->second;
 }
 
-std::ostream& operator<<(std::ostream& ost, const Signature& sig) {
+std::ostream& operator<<(std::ostream& ost, const Signature& sig)
+{
     ost << sig.m_name << " <- ";
     for (auto& [arg_type, arg_name] : sig.m_args) {
         ost << arg_name << ", ";
@@ -271,7 +287,8 @@ std::ostream& operator<<(std::ostream& ost, const Signature& sig) {
     return ost;
 }
 
-std::ostream& print(std::ostream& ost, const TopLevelUnit& u) {
+std::ostream& print(std::ostream& ost, const TopLevelUnit& u)
+{
     std::visit(
         [&](auto&& v) {
             using T = std::decay_t<decltype(v)>;
@@ -288,14 +305,16 @@ std::ostream& print(std::ostream& ost, const TopLevelUnit& u) {
     return ost;
 }
 
-std::ostream& print(std::ostream& ost, const TopLevel& top_level) {
+std::ostream& print(std::ostream& ost, const TopLevel& top_level)
+{
     for (auto& e : top_level) {
         print(ost, e) << "\n";
     }
     return ost;
 }
 
-std::ostream& operator<<(std::ostream& ost, const Context& context) {
+std::ostream& operator<<(std::ostream& ost, const Context& context)
+{
     ost << "=========== Context ==========" << std::endl;
     ost << "Variables::" << std::endl;
     for (auto& v : context.m_variables) {

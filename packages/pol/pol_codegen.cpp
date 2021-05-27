@@ -34,8 +34,10 @@ namespace pol {
 
 namespace codegen {
 
-struct Program {
-    Program() {
+struct Program
+{
+    Program()
+    {
         // Open a new context and module.
         m_context = std::make_unique<llvm::LLVMContext>();
         m_module  = std::make_unique<llvm::Module>("my cool jit", *m_context);
@@ -67,37 +69,49 @@ struct Program {
 };
 
 template <class E>
-inline Err pom_should_have_caught(const E& e) {
+inline Err pom_should_have_caught(const E& e)
+{
     return Err{fmt::format("pom should have caught: {0}", e.m_desc)};
 }
 
-struct DecValue {
+struct DecValue
+{
     llvm::Value* m_value;
 };
 
-tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Expr& v);
+tl::expected<DecValue, Err> codegen(Program&                      program,
+                                    const pom::semantic::Context& context,
+                                    const pom::ast::Expr&         v);
 
-tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Boolean& v) {
+tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Boolean& v)
+{
     return DecValue{(v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
                              : llvm::ConstantInt::getFalse(*program.m_context))};
 }
 
-tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Real& v) {
+tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Real& v)
+{
     return DecValue{llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val))};
 }
 
-tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Integer& v) {
+tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Integer& v)
+{
     return DecValue{llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true))};
 }
 
-tl::expected<DecValue, Err> codegen(Program&                 program, const pom::semantic::Context&,
-                                    const pom::ast::Literal& v, pom::ast::ExprId) {
+tl::expected<DecValue, Err> codegen(Program& program,
+                                    const pom::semantic::Context&,
+                                    const pom::ast::Literal& v,
+                                    pom::ast::ExprId)
+{
     return std::visit([&](auto& e) { return literalValue(program, e); }, v);
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Var& var, pom::ast::ExprId) {
+tl::expected<DecValue, Err> codegen(Program&                      program,
+                                    const pom::semantic::Context& context,
+                                    const pom::ast::Var&          var,
+                                    pom::ast::ExprId)
+{
     // Look this variable up in the function.
     llvm::Value* v = program.m_named_values[var.m_name];
     if (!v) {
@@ -129,8 +143,11 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     return DecValue{v};
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::ListExpr& li, pom::ast::ExprId) {
+tl::expected<DecValue, Err> codegen(Program&                      program,
+                                    const pom::semantic::Context& context,
+                                    const pom::ast::ListExpr&     li,
+                                    pom::ast::ExprId)
+{
     pom::TypeCSP          item_ty;
     std::vector<DecValue> generated;
     for (auto& exp : li.m_expressions) {
@@ -170,8 +187,11 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     return DecValue{allocated};
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::BinaryExpr& e, pom::ast::ExprId) {
+tl::expected<DecValue, Err> codegen(Program&                      program,
+                                    const pom::semantic::Context& context,
+                                    const pom::ast::BinaryExpr&   e,
+                                    pom::ast::ExprId)
+{
     using BErr  = pol::basicoperators::Err;
     auto lv_gen = [&](llvm::IRBuilderBase*) -> tl::expected<llvm::Value*, BErr> {
         auto v = codegen(program, context, *e.m_lhs);
@@ -210,8 +230,11 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     return DecValue{*bop};
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Call& c, pom::ast::ExprId) {
+tl::expected<DecValue, Err> codegen(Program&                      program,
+                                    const pom::semantic::Context& context,
+                                    const pom::ast::Call&         c,
+                                    pom::ast::ExprId)
+{
     using BErr = pol::basicoperators::Err;
 
     std::vector<basicoperators::ValueGenerator> arg_gen;
@@ -261,12 +284,15 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     return DecValue{program.m_builder->CreateCall(function, *args, "calltmp")};
 }
 
-tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Expr& v) {
+tl::expected<DecValue, Err> codegen(Program&                      program,
+                                    const pom::semantic::Context& context,
+                                    const pom::ast::Expr&         v)
+{
     return std::visit([&](auto&& w) { return codegen(program, context, w, v.m_id); }, v.m_val);
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Signature& s) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Signature& s)
+{
     // Make the function type:  double(double,double) etc.
 
     std::vector<llvm::Type*> llvm_args;
@@ -297,7 +323,8 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic
     return f;
 }
 
-tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Function& f) {
+tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Function& f)
+{
     // First, check for an existing function from a previous 'extern' declaration.
     llvm::Function* function = program.m_module->getFunction(f.m_sig.m_name);
 
@@ -335,7 +362,8 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic
     return function;
 }
 
-tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool print_ir) {
+tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool print_ir)
+{
     Program program;
 
     std::string  lastfn;
@@ -388,7 +416,8 @@ tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool
 template <class>
 inline constexpr bool always_false_v = false;
 
-std::ostream& operator<<(std::ostream& os, const Result& res) {
+std::ostream& operator<<(std::ostream& os, const Result& res)
+{
     return std::visit(
         [&](auto&& v) -> std::ostream& {
             using T = std::decay_t<decltype(v)>;

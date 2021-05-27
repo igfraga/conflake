@@ -8,13 +8,15 @@ namespace pom {
 
 namespace ops {
 
-struct Err {
+struct Err
+{
     std::string m_desc;
 };
 
 using OpKey = std::variant<char, std::string>;
 
-struct OpInfo {
+struct OpInfo
+{
     OpKey                m_op;
     std::vector<TypeCSP> m_args;
     TypeCSP              m_ret_type;

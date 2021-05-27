@@ -6,11 +6,13 @@
 
 namespace pom {
 
-struct TypeError {
+struct TypeError
+{
     std::string m_desc;
 };
 
-class Type {
+class Type
+{
    public:
     virtual ~Type();
 
