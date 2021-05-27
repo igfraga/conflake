@@ -1,0 +1,3 @@
+def foo(boolean x real b) : real
+    if(x, 1.0 + b, 2.0 * b)
+foo(False, 3.1)

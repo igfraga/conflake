@@ -8,9 +8,6 @@ namespace pol {
 
 namespace basicoperators {
 
-using BinaryOpBuilder =
-    std::function<llvm::Value*(llvm::IRBuilderBase*, const std::vector<llvm::Value*>&)>;
-
 std::string make_key(const pom::ops::OpKey& op, std::vector<pom::TypeCSP> operands) {
     std::ostringstream oss;
     if (std::holds_alternative<char>(op)) {
@@ -71,11 +68,60 @@ class OpTable {
     llvm::Value* and_bool(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
         return builder->CreateAnd(vs[0], vs[1], "andtmp");
     }
-    llvm::Value* if_real(llvm::IRBuilderBase* builder, const std::vector<llvm::Value*>& vs) {
-        return builder->CreateAnd(vs[0], vs[1], "andtmp");
+    tl::expected<llvm::Value*, Err> if_real(llvm::IRBuilderBase*               builder,
+                                            const std::vector<ValueGenerator>& vs) {
+        auto& ctx = builder->getContext();
+        auto  bv  = vs[0](builder);
+        if (!bv) {
+            return bv;
+        }
+        auto cmp = builder->CreateICmpEQ(*bv, llvm::ConstantInt::getTrue(ctx));
+        auto fn  = builder->GetInsertBlock()->getParent();
+
+        llvm::BasicBlock* then_bb  = llvm::BasicBlock::Create(ctx, "then", fn);
+        llvm::BasicBlock* else_bb  = llvm::BasicBlock::Create(ctx, "else");
+        llvm::BasicBlock* merge_bb = llvm::BasicBlock::Create(ctx, "ifcont");
+        builder->CreateCondBr(cmp, then_bb, else_bb);
+
+        builder->SetInsertPoint(then_bb);
+
+        auto lv = vs[1](builder);
+        if (!lv) {
+            return lv;
+        }
+
+        builder->CreateBr(merge_bb);
+
+        then_bb = builder->GetInsertBlock();
+
+        fn->getBasicBlockList().push_back(else_bb);
+        builder->SetInsertPoint(else_bb);
+
+        auto rv = vs[2](builder);
+        if (!rv) {
+            return rv;
+        }
+
+        builder->CreateBr(merge_bb);
+        else_bb = builder->GetInsertBlock();
+
+        fn->getBasicBlockList().push_back(merge_bb);
+        builder->SetInsertPoint(merge_bb);
+        llvm::PHINode* phi =
+            builder->CreatePHI(llvm::Type::getDoubleTy(builder->getContext()), 2, "iftmp");
+
+        phi->addIncoming(*lv, then_bb);
+        phi->addIncoming(*rv, else_bb);
+        return phi;
     }
 
-    std::map<std::string, BinaryOpBuilder> m_ops;
+    using BinaryOpBuilder =
+        std::function<llvm::Value*(llvm::IRBuilderBase*, const std::vector<llvm::Value*>&)>;
+    using AdvBinaryOpBuilder = std::function<tl::expected<llvm::Value*, Err>(
+        llvm::IRBuilderBase*, const std::vector<ValueGenerator>&)>;
+
+    std::map<std::string, BinaryOpBuilder>    m_ops;
+    std::map<std::string, AdvBinaryOpBuilder> m_adv_ops;
 };
 
 OpTable::OpTable() {
@@ -100,6 +146,8 @@ OpTable::OpTable() {
 
     m_ops[make_key("or", {boolean, boolean})]  = std::bind(&OpTable::or_bool, this, _1, _2);
     m_ops[make_key("and", {boolean, boolean})] = std::bind(&OpTable::and_bool, this, _1, _2);
+
+    m_adv_ops[make_key("if", {boolean, real, real})] = std::bind(&OpTable::if_real, this, _1, _2);
 }
 
 tl::expected<llvm::Value*, Err> OpTable::generate(
@@ -108,7 +156,12 @@ tl::expected<llvm::Value*, Err> OpTable::generate(
     auto key = make_key(op_info.m_op, op_info.m_args);
     auto fo  = m_ops.find(key);
     if (fo == m_ops.end()) {
-        return tl::make_unexpected(Err{fmt::format("invalid binary operator {0}", key)});
+        // try advanced
+        auto fo_adv = m_adv_ops.find(key);
+        if (fo_adv == m_adv_ops.end()) {
+            return tl::make_unexpected(Err{fmt::format("invalid binary operator {0}", key)});
+        }
+        return fo_adv->second(builder, operands);
     }
 
     auto values = execute(operands, builder);
