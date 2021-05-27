@@ -124,10 +124,13 @@ tl::expected<TypeCSP, Err> calculateType(const ast::Call& call, Context& context
         return tl::make_unexpected(
             Err{fmt::format("Function {0} not found in this context", call.m_function)});
     }
-    if (!found->second->returnType()) {
-        return tl::make_unexpected(Err{fmt::format("{0} is not callable", call.m_function)});
+    auto ret_type = found->second->callable(arg_types);
+    if (!ret_type) {
+        return tl::make_unexpected(
+            Err{fmt::format("Error calling {0}: {1}", call.m_function, ret_type.error().m_desc)});
     }
-    return found->second->returnType();
+
+    return *ret_type;
 }
 
 tl::expected<TypeCSP, Err> calculateType(const ast::Expr& expr, Context& context) {
@@ -196,7 +199,7 @@ tl::expected<Function, Err> analyze(const ast::Function& function, Context& oute
     }
 
     auto ins = context.m_expressions.insert({function.m_code->m_id, *ret_type});
-    if(!ins.second) {
+    if (!ins.second) {
         assert(0);
         return tl::make_unexpected(Err{"Duplicated expression id."});
     }
@@ -244,19 +247,17 @@ tl::expected<TopLevel, Err> analyze(const parser::TopLevel& top_level) {
     return semantic_top_level;
 }
 
-tl::expected<TypeCSP, Err> Context::expressionType(ast::ExprId id) const
-{
+tl::expected<TypeCSP, Err> Context::expressionType(ast::ExprId id) const {
     auto fo = m_expressions.find(id);
-    if(fo == m_expressions.end()) {
+    if (fo == m_expressions.end()) {
         return tl::make_unexpected(Err{fmt::format("Expression id not found: {0}", id)});
     }
     return fo->second;
 }
 
-tl::expected<TypeCSP, Err> Context::variableType(std::string_view name) const
-{
+tl::expected<TypeCSP, Err> Context::variableType(std::string_view name) const {
     auto fo = m_variables.find(std::string(name));
-    if(fo == m_variables.end()) {
+    if (fo == m_variables.end()) {
         return tl::make_unexpected(Err{fmt::format("Variable not found: {0}", name)});
     }
     return fo->second;
