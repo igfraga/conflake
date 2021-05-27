@@ -1,0 +1,3 @@
+def fib(integer x) : integer
+    if(x < 2i, x, fib(x - 1i) + fib(x - 2i))
+fib(8i)
