@@ -73,7 +73,6 @@ inline Err pom_should_have_caught(const E& e) {
 
 struct DecValue {
     llvm::Value* m_value;
-    pom::TypeCSP m_type;
 };
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
@@ -81,18 +80,15 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
 
 tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Boolean& v) {
     return DecValue{(v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
-                             : llvm::ConstantInt::getFalse(*program.m_context)),
-                    pom::types::boolean()};
+                             : llvm::ConstantInt::getFalse(*program.m_context))};
 }
 
 tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Real& v) {
-    return DecValue{llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val)),
-                    pom::types::real()};
+    return DecValue{llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val))};
 }
 
 tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Integer& v) {
-    return DecValue{llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true)),
-                    pom::types::integer()};
+    return DecValue{llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true))};
 }
 
 tl::expected<DecValue, Err> codegen(Program&                 program, const pom::semantic::Context&,
@@ -127,44 +123,51 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         auto gep = program.m_builder->CreateInBoundsGEP(*ty, v, index);
 
         auto load = program.m_builder->CreateLoad(*ty, gep);
-        return DecValue{load, sty};
+        return DecValue{load};
     }
 
-    return DecValue{v, fo->second};
+    return DecValue{v};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
                                     const pom::ast::ListExpr& li, pom::ast::ExprId) {
-    std::vector<DecValue> gened;
+    pom::TypeCSP          item_ty;
+    std::vector<DecValue> generated;
     for (auto& exp : li.m_expressions) {
         auto lie = codegen(program, context, *exp);
         if (!lie) {
             return lie;
         }
-        gened.push_back(std::move(*lie));
+        generated.push_back(std::move(*lie));
+        if (!item_ty) {
+            auto ty = context.expressionType(exp->m_id);
+            if (!ty) {
+                return tl::make_unexpected(Err{ty.error().m_desc});
+            }
+            item_ty = *ty;
+        }
     }
-
-    auto ty = basictypes::getType(program.m_context.get(), *gened[0].m_type);
-    if (!ty) {
-        return tl::make_unexpected(Err{ty.error().m_desc});
-    }
+    assert(item_ty);
 
     auto         int_ptr = llvm::IntegerType::get(*program.m_context, 64);
     llvm::Value* sz1 =
-        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, gened.size(), false));
+        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, generated.size(), false));
 
+    auto llvm_type = basictypes::getType(program.m_context.get(), *item_ty);
+    if (!llvm_type) {
+        return tl::make_unexpected(Err{llvm_type.error().m_desc});
+    }
     auto allocated =
-        pol::createMalloc(program.m_builder.get(), int_ptr, *ty, sz1, nullptr, nullptr, "a");
+        pol::createMalloc(program.m_builder.get(), int_ptr, *llvm_type, sz1, nullptr, nullptr, "a");
 
-    for (auto i = 0ull; i < gened.size(); i++) {
+    for (auto i = 0ull; i < generated.size(); i++) {
         auto index = llvm::ConstantInt::get(*program.m_context, llvm::APInt(32, int(i), true));
 
         auto gep = program.m_builder->CreateGEP(allocated, index);
-        program.m_builder->CreateStore(gened[i].m_value, gep);
+        program.m_builder->CreateStore(generated[i].m_value, gep);
     }
 
-    auto pty = std::make_shared<pom::types::List>(gened[0].m_type);
-    return DecValue{allocated, pty};
+    return DecValue{allocated};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
@@ -178,7 +181,16 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         return lr;
     }
 
-    auto op_info = pom::ops::getBuiltin(e.m_op, {lv->m_type, lr->m_type});
+    auto lv_ty = context.expressionType(e.m_lhs->m_id);
+    auto rv_ty = context.expressionType(e.m_rhs->m_id);
+    if (!lv_ty) {
+        return tl::make_unexpected(Err{lv_ty.error().m_desc});
+    }
+    if (!rv_ty) {
+        return tl::make_unexpected(Err{rv_ty.error().m_desc});
+    }
+
+    auto op_info = pom::ops::getBuiltin(e.m_op, {*lv_ty, *rv_ty});
     if (!op_info) {
         assert(0);
         return tl::make_unexpected(pom_should_have_caught(op_info.error()));
@@ -189,11 +201,11 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
     if (!bop) {
         return tl::make_unexpected(pom_should_have_caught(bop.error()));
     }
-    return DecValue{*bop, lv->m_type};
+    return DecValue{*bop};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
-                                    const pom::ast::Call& c, pom::ast::ExprId expr_id) {
+                                    const pom::ast::Call& c, pom::ast::ExprId) {
     std::vector<llvm::Value*> args;
     std::vector<pom::TypeCSP> arg_types;
     for (unsigned i = 0, e = c.m_args.size(); i != e; ++i) {
@@ -202,7 +214,12 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
             return aa;
         }
         args.push_back(aa->m_value);
-        arg_types.push_back(aa->m_type);
+
+        auto a_type = context.expressionType(c.m_args[i]->m_id);
+        if (!a_type) {
+            return tl::make_unexpected(Err{a_type.error().m_desc});
+        }
+        arg_types.push_back(*a_type);
     }
 
     auto builtin = pom::ops::getBuiltin(c.m_function, arg_types);
@@ -211,7 +228,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
         if (!op) {
             return tl::make_unexpected(Err{op.error().m_desc});
         }
-        return DecValue{*op, builtin->m_ret_type};
+        return DecValue{*op};
     }
 
     // Look up the name in the global module table.
@@ -225,12 +242,7 @@ tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Conte
                                                    function->arg_size(), c.m_args.size())});
     }
 
-    auto ret_type = context.expressionType(expr_id);
-    if (!ret_type) {
-        return tl::make_unexpected(Err{ret_type.error().m_desc});
-    }
-
-    return DecValue{program.m_builder->CreateCall(function, args, "calltmp"), *ret_type};
+    return DecValue{program.m_builder->CreateCall(function, args, "calltmp")};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program, const pom::semantic::Context& context,
