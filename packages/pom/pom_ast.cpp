@@ -4,6 +4,7 @@
 #include <fmt/format.h>
 
 #include <algorithm>
+#include <iostream>
 
 namespace pom {
 

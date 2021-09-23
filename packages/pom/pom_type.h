@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <tl/expected.hpp>
+#include <string>
 #include <variant>
 
 namespace pom {
@@ -36,7 +37,6 @@ using TypeCSP = std::shared_ptr<const Type>;
 /// Inline methods
 
 inline bool Type::operator==(const Type& other) const { return other.mangled() == mangled(); }
-
 inline bool Type::operator!=(const Type& other) const { return other.mangled() != mangled(); }
 
 }  // namespace pom
