@@ -48,7 +48,7 @@ TEST_CASE("Whole pipeline test", "[whole][jit]")
             CONFLAKE_EXAMPLES "/test10.txt", Res{6.2}
         },
         {
-            CONFLAKE_EXAMPLES "/fib.txt", Res{21l}
+            CONFLAKE_EXAMPLES "/test_fib.txt", Res{21l}
         },
     };
     // clang-format on
