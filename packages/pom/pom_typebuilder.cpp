@@ -5,13 +5,14 @@
 #include <pom_functiontype.h>
 #include <pom_listtype.h>
 
+#include <fmt/format.h>
 #include <map>
 
 namespace pom {
 
 namespace types {
 
-TypeCSP build(const ast::TypeDesc& type)
+tl::expected<TypeCSP, TypeError> build(const ast::TypeDesc& type)
 {
     struct NArgs
     {
@@ -23,16 +24,20 @@ TypeCSP build(const ast::TypeDesc& type)
 
     auto info = types_info.find(type.m_name);
     if (info == types_info.end()) {
-        return nullptr;
+        return tl::make_unexpected(TypeError{fmt::format("Unknown type: {0}", type.m_name)});
     }
 
     if (std::holds_alternative<size_t>(info->second)) {
         if (std::get<size_t>(info->second) != type.m_template_args.size()) {
-            return nullptr;
+            return tl::make_unexpected(
+                TypeError{fmt::format("Bad number of template args ({0}) for type: {1}",
+                                      type.m_template_args.size(), type.m_name)});
         }
     } else if (std::holds_alternative<NArgs>(info->second)) {
         if (std::get<NArgs>(info->second).m_min > type.m_template_args.size()) {
-            return nullptr;
+            return tl::make_unexpected(
+                TypeError{fmt::format("Bad number of template args ({0}) for type: {1}",
+                                      type.m_template_args.size(), type.m_name)});
         }
     }
 
@@ -40,9 +45,9 @@ TypeCSP build(const ast::TypeDesc& type)
     for (auto& targ : type.m_template_args) {
         auto btarg = build(*targ);
         if (!btarg) {
-            return nullptr;
+            return btarg;
         }
-        template_types.push_back(std::move(btarg));
+        template_types.push_back(std::move(*btarg));
     }
 
     if (type.m_name == "real") {
@@ -62,7 +67,9 @@ TypeCSP build(const ast::TypeDesc& type)
         return std::make_shared<Function>(std::move(function_type));
     }
 
-    return nullptr;
+    return tl::make_unexpected(
+        TypeError{fmt::format("Unknown type (should have been caught above): {0}", type.m_name)});
+    ;
 }
 
 }  // namespace types

@@ -166,12 +166,16 @@ tl::expected<Signature, Err> analyze(const ast::Signature& sig, Context&)
     for (auto& arg : sig.m_args) {
         auto typ = types::build(*arg.m_type);
         if (!typ) {
-            return tl::make_unexpected(Err{fmt::format("Unknown type: {0}", *arg.m_type)});
+            return tl::make_unexpected(Err{typ.error().m_desc});
         }
-        sem_sig.m_args.push_back({typ, arg.m_name});
+        sem_sig.m_args.push_back({std::move(*typ), arg.m_name});
     }
     if (sig.m_ret_type) {
-        sem_sig.m_return_type = types::build(*sig.m_ret_type);
+        auto typ = types::build(*sig.m_ret_type);
+        if (!typ) {
+            return tl::make_unexpected(Err{typ.error().m_desc});
+        }
+        sem_sig.m_return_type = std::move(*typ);
     }
     return sem_sig;
 }
