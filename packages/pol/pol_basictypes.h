@@ -5,6 +5,7 @@
 
 namespace llvm {
 class LLVMContext;
+class FunctionType;
 class Type;
 }  // namespace llvm
 
@@ -18,6 +19,9 @@ struct Err
 };
 
 tl::expected<llvm::Type*, Err> getType(llvm::LLVMContext* context, const pom::Type& type);
+
+tl::expected<llvm::FunctionType*, Err> getFunctionType(llvm::LLVMContext* context,
+                                                       const pom::Type&   type);
 
 }  // namespace basictypes
 

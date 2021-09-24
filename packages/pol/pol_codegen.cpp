@@ -112,10 +112,17 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
                                     const pom::ast::Var&          var,
                                     pom::ast::ExprId)
 {
+    // check in global functions
+    llvm::Function* function = program.m_module->getFunction(var.m_name);
+    if (function) {
+        return DecValue{function};
+    }
+
     // Look this variable up in the function.
-    llvm::Value* v = program.m_named_values[var.m_name];
-    if (!v) {
-        return tl::make_unexpected(Err{"Unknown variable name (old)"});
+    auto v = program.m_named_values.find(var.m_name);
+    if (v == program.m_named_values.end() || !v->second) {
+        return tl::make_unexpected(
+            Err{fmt::format("Unknown variable name (old): {0}", var.m_name)});
     }
     auto fo = context.m_variables.find(var.m_name);
     if (fo == context.m_variables.end()) {
@@ -134,13 +141,13 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
         auto index =
             llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, *var.m_subscript, true));
 
-        auto gep = program.m_builder->CreateInBoundsGEP(*ty, v, index);
+        auto gep = program.m_builder->CreateInBoundsGEP(*ty, v->second, index);
 
         auto load = program.m_builder->CreateLoad(*ty, gep);
         return DecValue{load};
     }
 
-    return DecValue{v};
+    return DecValue{v->second};
 }
 
 tl::expected<DecValue, Err> codegen(Program&                      program,
@@ -266,14 +273,39 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
         return DecValue{*op};
     }
 
-    llvm::Function* function = program.m_module->getFunction(c.m_function);
-    if (!function) {
-        return tl::make_unexpected(Err{"Unknown function referenced"});
+    llvm::Value*        function_value = nullptr;
+    llvm::FunctionType* function_type  = nullptr;
+
+    {
+        llvm::Function* function = program.m_module->getFunction(c.m_function);
+        if (function) {
+            if (function->arg_size() != c.m_args.size()) {
+                return tl::make_unexpected(
+                    Err{fmt::format("Incorrect # arguments passed {0} vs {1}", function->arg_size(),
+                                    c.m_args.size())});
+            }
+            function_value = function;
+            function_type  = function->getFunctionType();
+        }
     }
 
-    if (function->arg_size() != c.m_args.size()) {
-        return tl::make_unexpected(Err{fmt::format("Incorrect # arguments passed {0} vs {1}",
-                                                   function->arg_size(), c.m_args.size())});
+    if (!function_value) {
+        auto v = program.m_named_values.find(c.m_function);
+        if (v == program.m_named_values.end()) {
+            return tl::make_unexpected(Err{"Unknown function referenced (old)"});
+        }
+
+        auto cv = context.m_variables.find(c.m_function);
+        if (cv == context.m_variables.end()) {
+            return tl::make_unexpected(Err{"Unknown function referenced"});
+        }
+
+        function_value = v->second;
+        auto fty       = basictypes::getFunctionType(program.m_context.get(), *cv->second);
+        if (!fty) {
+            return tl::make_unexpected(Err{fty.error().m_desc});
+        }
+        function_type = *fty;
     }
 
     auto args = pol::basicoperators::execute(arg_gen, program.m_builder.get());
@@ -281,7 +313,7 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
         return tl::make_unexpected(Err{args.error().m_desc});
     }
 
-    return DecValue{program.m_builder->CreateCall(function, *args, "calltmp")};
+    return DecValue{program.m_builder->CreateCall(function_type, function_value, *args, "calltmp")};
 }
 
 tl::expected<DecValue, Err> codegen(Program&                      program,

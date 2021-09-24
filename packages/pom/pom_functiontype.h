@@ -15,6 +15,8 @@ class Function : public Type
 
     std::string mangled() const final;
 
+    std::vector<std::shared_ptr<const Type>> templateArgs() const final;
+
     std::shared_ptr<const Type> returnType() const final { return m_ret_type; }
 
     tl::expected<TypeCSP, TypeError> callable(const std::vector<TypeCSP>& arg_types) const final;

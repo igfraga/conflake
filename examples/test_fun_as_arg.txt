@@ -1,0 +1,8 @@
+def foo(real a)
+    (a * 4)
+
+def bar(fun<real, real> f)
+    f(2)
+
+bar(foo)
+

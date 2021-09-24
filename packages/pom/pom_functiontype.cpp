@@ -28,6 +28,16 @@ std::string Function::mangled() const
     return oss.str();
 }
 
+std::vector<std::shared_ptr<const Type>> Function::templateArgs() const
+{
+    std::vector<std::shared_ptr<const Type>> ret;
+    ret.push_back(m_ret_type);
+    for (auto& arg : m_arg_types) {
+        ret.push_back(arg);
+    }
+    return ret;
+}
+
 tl::expected<TypeCSP, TypeError> Function::callable(const std::vector<TypeCSP>& arg_types) const
 {
     auto is_callable = std::equal(arg_types.begin(), arg_types.end(), m_arg_types.begin(),

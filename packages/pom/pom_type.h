@@ -21,6 +21,8 @@ class Type
 
     virtual std::string mangled() const = 0;
 
+    virtual std::vector<std::shared_ptr<const Type>> templateArgs() const { return {}; }
+
     virtual std::shared_ptr<const Type> returnType() const { return nullptr; }
 
     virtual tl::expected<std::shared_ptr<const Type>, TypeError> callable(

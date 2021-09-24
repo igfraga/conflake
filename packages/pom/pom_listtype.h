@@ -19,6 +19,11 @@ class List : public Type
 
     std::string mangled() const final;
 
+    std::vector<std::shared_ptr<const Type>> templateArgs() const final
+    {
+        return {m_contained_type};
+    }
+
     std::shared_ptr<const Type> subscriptedType(int64_t) const final { return m_contained_type; }
 
     TypeCSP m_contained_type;
