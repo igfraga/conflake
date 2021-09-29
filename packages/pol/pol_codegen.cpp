@@ -173,16 +173,26 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
     }
     assert(item_ty);
 
-    auto         int_ptr = llvm::IntegerType::get(*program.m_context, 64);
-    llvm::Value* sz1 =
-        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, generated.size(), false));
+    auto int_ptr = llvm::IntegerType::get(*program.m_context, 64);
 
     auto llvm_type = basictypes::getType(program.m_context.get(), *item_ty);
     if (!llvm_type) {
         return tl::make_unexpected(Err{llvm_type.error().m_desc});
     }
-    auto allocated =
-        pol::createMalloc(program.m_builder.get(), int_ptr, *llvm_type, sz1, nullptr, nullptr, "a");
+
+    auto llvm_type_size = (*llvm_type)->getPrimitiveSizeInBits() / 8;
+    if (0 == llvm_type_size) {
+        return tl::make_unexpected(Err{"List of something not implemented"});
+    }
+
+    llvm::Value* alloc_sz =
+        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, llvm_type_size, false));
+
+    llvm::Value* array_sz =
+        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, generated.size(), false));
+
+    auto allocated = pol::createMalloc(program.m_builder.get(), int_ptr, *llvm_type, alloc_sz,
+                                       array_sz, nullptr, "a");
 
     for (auto i = 0ull; i < generated.size(); i++) {
         auto index = llvm::ConstantInt::get(*program.m_context, llvm::APInt(32, int(i), true));

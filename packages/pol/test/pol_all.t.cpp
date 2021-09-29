@@ -37,10 +37,9 @@ TEST_CASE("Whole pipeline test", "[whole][jit]")
         {
             CONFLAKE_EXAMPLES "/test7.cfl", Res{9l}
         },
-        //{
-            //TODO: fix malloc
-            //CONFLAKE_EXAMPLES "/test8.cfl", Res{4.0}
-        //},
+        {
+            CONFLAKE_EXAMPLES "/test8.cfl", Res{4.0}
+        },
         {
             CONFLAKE_EXAMPLES "/test9.cfl", Res{true}
         },
