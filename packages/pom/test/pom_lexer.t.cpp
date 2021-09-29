@@ -45,13 +45,13 @@ TEST_CASE("Test lexer on files", "[lexer]")
     // clang-format off
     std::vector<std::pair<std::filesystem::path, std::vector<pom::lexer::Token>>> ppp = {
         {
-            CONFLAKE_EXAMPLES "/test1.txt",
+            CONFLAKE_EXAMPLES "/test1.cfl",
             {
                 Real{4.0}, Op{'+'}, Real{5.0}, Op{';'}, Eof{}
             }
         },
         {
-            CONFLAKE_EXAMPLES "/test2.txt",
+            CONFLAKE_EXAMPLES "/test2.cfl",
             {
                 Keyword::k_def,
                 Ident{"foo"}, Op{'('}, Ident{"real"}, Ident{"a"}, Ident{"real"}, Ident{"b"}, Op{')'},
@@ -62,7 +62,7 @@ TEST_CASE("Test lexer on files", "[lexer]")
             }
         },
         {
-            CONFLAKE_EXAMPLES "/test4.txt",
+            CONFLAKE_EXAMPLES "/test4.cfl",
             {
                 Keyword::k_extern,
                 Ident{"cos"}, Op{'('}, Ident{"real"}, Ident{"x"}, Op{')'},

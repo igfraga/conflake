@@ -17,41 +17,41 @@ TEST_CASE("Whole pipeline test", "[whole][jit]")
     // clang-format off
     std::vector<std::pair<std::filesystem::path, Res>> ppp = {
         {
-            CONFLAKE_EXAMPLES "/test1.txt", Res{9.0}
+            CONFLAKE_EXAMPLES "/test1.cfl", Res{9.0}
         },
         {
-            CONFLAKE_EXAMPLES "/test2.txt", Res{}
+            CONFLAKE_EXAMPLES "/test2.cfl", Res{}
         },
         {
-            CONFLAKE_EXAMPLES "/test3.txt", Res{}
+            CONFLAKE_EXAMPLES "/test3.cfl", Res{}
         },
         {
-            CONFLAKE_EXAMPLES "/test4.txt", Res{std::cos(1.234)}
+            CONFLAKE_EXAMPLES "/test4.cfl", Res{std::cos(1.234)}
         },
         {
-            CONFLAKE_EXAMPLES "/test5.txt", Res{16.0}
+            CONFLAKE_EXAMPLES "/test5.cfl", Res{16.0}
         },
         {
-            CONFLAKE_EXAMPLES "/test6.txt", Res{6.0}
+            CONFLAKE_EXAMPLES "/test6.cfl", Res{6.0}
         },
         {
-            CONFLAKE_EXAMPLES "/test7.txt", Res{9l}
+            CONFLAKE_EXAMPLES "/test7.cfl", Res{9l}
         },
         //{
             //TODO: fix malloc
-            //CONFLAKE_EXAMPLES "/test8.txt", Res{4.0}
+            //CONFLAKE_EXAMPLES "/test8.cfl", Res{4.0}
         //},
         {
-            CONFLAKE_EXAMPLES "/test9.txt", Res{true}
+            CONFLAKE_EXAMPLES "/test9.cfl", Res{true}
         },
         {
-            CONFLAKE_EXAMPLES "/test10.txt", Res{6.2}
+            CONFLAKE_EXAMPLES "/test10.cfl", Res{6.2}
         },
         {
-            CONFLAKE_EXAMPLES "/test_fib.txt", Res{21l}
+            CONFLAKE_EXAMPLES "/test_fib.cfl", Res{21l}
         },
         {
-            CONFLAKE_EXAMPLES "/test_fun_as_arg.txt", Res{8.0}
+            CONFLAKE_EXAMPLES "/test_fun_as_arg.cfl", Res{8.0}
         },
     };
     // clang-format on

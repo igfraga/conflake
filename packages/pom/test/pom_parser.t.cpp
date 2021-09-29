@@ -15,23 +15,23 @@ TEST_CASE("Test parser files", "[parser]")
     // clang-format off
     std::vector<std::pair<std::filesystem::path, size_t>> ppp = {
         {
-            CONFLAKE_EXAMPLES "/test1.txt",
+            CONFLAKE_EXAMPLES "/test1.cfl",
             1ull
         },
         {
-            CONFLAKE_EXAMPLES "/test2.txt",
+            CONFLAKE_EXAMPLES "/test2.cfl",
             1ull
         },
         {
-            CONFLAKE_EXAMPLES "/test3.txt",
+            CONFLAKE_EXAMPLES "/test3.cfl",
             2ull
         },
         {
-            CONFLAKE_EXAMPLES "/test4.txt",
+            CONFLAKE_EXAMPLES "/test4.cfl",
             2ull
         },
         {
-            CONFLAKE_EXAMPLES "/test5.txt",
+            CONFLAKE_EXAMPLES "/test5.cfl",
             2ull
         }
     };
