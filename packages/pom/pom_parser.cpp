@@ -285,6 +285,13 @@ expected<ast::Signature> parsePrototype(TokIt& tok_it)
             ++tok_it;
             break;
         }
+        if (!args.empty()) {
+            if (!isOp(*tok_it, ',')) {
+                return tl::make_unexpected(Err{fmt::format(
+                    "Expected comma in prototype but found: {0}", lexer::toString(*tok_it))});
+            }
+            ++tok_it;
+        }
 
         auto type = parseType(tok_it);
         if (!type) {

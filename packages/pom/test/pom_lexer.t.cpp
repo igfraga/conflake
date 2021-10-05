@@ -54,7 +54,7 @@ TEST_CASE("Test lexer on files", "[lexer]")
             CONFLAKE_EXAMPLES "/test2.cfl",
             {
                 Keyword::k_def,
-                Ident{"foo"}, Op{'('}, Ident{"real"}, Ident{"a"}, Ident{"real"}, Ident{"b"}, Op{')'},
+                Ident{"foo"}, Op{'('}, Ident{"real"}, Ident{"a"}, Op{','}, Ident{"real"}, Ident{"b"}, Op{')'},
                 Op{':'}, Ident{"real"},
                 Ident{"a"}, Op{'*'}, Ident{"a"},
                 Op{'+'}, Real{2.0}, Op{'*'}, Ident{"a"}, Op{'*'}, Ident{"b"},

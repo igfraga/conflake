@@ -1,4 +1,4 @@
-def foo(real a real b)
+def foo(real a, real b)
     a < b
 
 def bar(boolean x)
