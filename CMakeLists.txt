@@ -10,7 +10,7 @@ endmacro()
 
 macro(conflake_library_flags target)
     target_compile_options(${target} PRIVATE -Wall -Werror)
-    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_compile_features(${target} PRIVATE cxx_std_20)
 endmacro()
 
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
