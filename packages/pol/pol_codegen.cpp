@@ -14,6 +14,7 @@
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -39,13 +40,15 @@ struct Program
     Program()
     {
         // Open a new context and module.
-        m_context = std::make_unique<llvm::LLVMContext>();
-        m_module  = std::make_unique<llvm::Module>("my cool jit", *m_context);
+        auto a_context       = std::make_unique<llvm::LLVMContext>();
+        auto a_module        = std::make_unique<llvm::Module>("my cool jit", *a_context);
+        m_thread_safe_module = std::make_unique<llvm::orc::ThreadSafeModule>(std::move(a_module),
+                                                                             std::move(a_context));
 
         // Create a new builder for the module.
-        m_builder = std::make_unique<llvm::IRBuilder<>>(*m_context);
+        m_builder = std::make_unique<llvm::IRBuilder<>>(context());
 
-        m_fpm = std::make_unique<llvm::legacy::FunctionPassManager>(m_module.get());
+        m_fpm = std::make_unique<llvm::legacy::FunctionPassManager>(get_module());
         // Do simple "peephole" optimizations and bit-twiddling optzns.
         m_fpm->add(llvm::createInstructionCombiningPass());
         // Reassociate expressions.
@@ -56,12 +59,16 @@ struct Program
         m_fpm->add(llvm::createCFGSimplificationPass());
         m_fpm->doInitialization();
 
-        m_jit = std::make_unique<Jit>();
-        m_module->setDataLayout(m_jit->getTargetMachine().createDataLayout());
+        m_jit = Jit::Create();
+        assert(m_jit);
+        get_module()->setDataLayout(m_jit->getDataLayout());
     }
 
-    std::unique_ptr<llvm::LLVMContext>                 m_context;
-    std::unique_ptr<llvm::Module>                      m_module;
+    llvm::Module* get_module() { return m_thread_safe_module->getModuleUnlocked(); }
+
+    llvm::LLVMContext& context() { return get_module()->getContext(); }
+
+    std::unique_ptr<llvm::orc::ThreadSafeModule>       m_thread_safe_module;
     std::unique_ptr<llvm::IRBuilder<>>                 m_builder;
     std::map<std::string, llvm::Value*>                m_named_values;
     std::unique_ptr<llvm::legacy::FunctionPassManager> m_fpm;
@@ -85,18 +92,18 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
 
 tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Boolean& v)
 {
-    return DecValue{(v.m_val ? llvm::ConstantInt::getTrue(*program.m_context)
-                             : llvm::ConstantInt::getFalse(*program.m_context))};
+    return DecValue{(v.m_val ? llvm::ConstantInt::getTrue(program.context())
+                             : llvm::ConstantInt::getFalse(program.context()))};
 }
 
 tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Real& v)
 {
-    return DecValue{llvm::ConstantFP::get(*program.m_context, llvm::APFloat(v.m_val))};
+    return DecValue{llvm::ConstantFP::get(program.context(), llvm::APFloat(v.m_val))};
 }
 
 tl::expected<DecValue, Err> literalValue(Program& program, const pom::literals::Integer& v)
 {
-    return DecValue{llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, v.m_val, true))};
+    return DecValue{llvm::ConstantInt::get(program.context(), llvm::APInt(64, v.m_val, true))};
 }
 
 tl::expected<DecValue, Err> codegen(Program& program,
@@ -113,7 +120,7 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
                                     pom::ast::ExprId)
 {
     // check in global functions
-    llvm::Function* function = program.m_module->getFunction(var.m_name);
+    llvm::Function* function = program.get_module()->getFunction(var.m_name);
     if (function) {
         return DecValue{function};
     }
@@ -134,12 +141,12 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
         if (!sty) {
             return tl::make_unexpected(Err{"codegen got bad code"});
         }
-        auto ty = basictypes::getType(program.m_context.get(), *sty);
+        auto ty = basictypes::getType(&program.context(), *sty);
         if (!ty) {
             return tl::make_unexpected(Err{ty.error().m_desc});
         }
         auto index =
-            llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, *var.m_subscript, true));
+            llvm::ConstantInt::get(program.context(), llvm::APInt(64, *var.m_subscript, true));
 
         auto gep = program.m_builder->CreateInBoundsGEP(*ty, v->second, index);
 
@@ -173,9 +180,9 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
     }
     assert(item_ty);
 
-    auto int_ptr = llvm::IntegerType::get(*program.m_context, 64);
+    auto int_ptr = llvm::IntegerType::get(program.context(), 64);
 
-    auto llvm_type = basictypes::getType(program.m_context.get(), *item_ty);
+    auto llvm_type = basictypes::getType(&program.context(), *item_ty);
     if (!llvm_type) {
         return tl::make_unexpected(Err{llvm_type.error().m_desc});
     }
@@ -186,18 +193,18 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
     }
 
     llvm::Value* alloc_sz =
-        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, llvm_type_size, false));
+        llvm::ConstantInt::get(program.context(), llvm::APInt(64, llvm_type_size, false));
 
     llvm::Value* array_sz =
-        llvm::ConstantInt::get(*program.m_context, llvm::APInt(64, generated.size(), false));
+        llvm::ConstantInt::get(program.context(), llvm::APInt(64, generated.size(), false));
 
     auto allocated = pol::createMalloc(program.m_builder.get(), int_ptr, *llvm_type, alloc_sz,
                                        array_sz, nullptr, "a");
 
     for (auto i = 0ull; i < generated.size(); i++) {
-        auto index = llvm::ConstantInt::get(*program.m_context, llvm::APInt(32, int(i), true));
+        auto index = llvm::ConstantInt::get(program.context(), llvm::APInt(32, int(i), true));
 
-        auto gep = program.m_builder->CreateGEP(allocated, index);
+        auto gep = program.m_builder->CreateGEP(*llvm_type, allocated, index);
         program.m_builder->CreateStore(generated[i].m_value, gep);
     }
 
@@ -287,7 +294,7 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
     llvm::FunctionType* function_type  = nullptr;
 
     {
-        llvm::Function* function = program.m_module->getFunction(c.m_function);
+        llvm::Function* function = program.get_module()->getFunction(c.m_function);
         if (function) {
             if (function->arg_size() != c.m_args.size()) {
                 return tl::make_unexpected(
@@ -311,7 +318,7 @@ tl::expected<DecValue, Err> codegen(Program&                      program,
         }
 
         function_value = v->second;
-        auto fty       = basictypes::getFunctionType(program.m_context.get(), *cv->second);
+        auto fty       = basictypes::getFunctionType(&program.context(), *cv->second);
         if (!fty) {
             return tl::make_unexpected(Err{fty.error().m_desc});
         }
@@ -339,14 +346,14 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic
 
     std::vector<llvm::Type*> llvm_args;
     for (auto& arg : s.m_args) {
-        auto lt = basictypes::getType(program.m_context.get(), *arg.first);
+        auto lt = basictypes::getType(&program.context(), *arg.first);
         if (!lt) {
             return tl::make_unexpected(Err{lt.error().m_desc});
         }
         llvm_args.push_back(*lt);
     }
 
-    auto ret_type = basictypes::getType(program.m_context.get(), *s.m_return_type);
+    auto ret_type = basictypes::getType(&program.context(), *s.m_return_type);
     if (!ret_type) {
         return tl::make_unexpected(Err{ret_type.error().m_desc});
     }
@@ -354,7 +361,7 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic
     llvm::FunctionType* func_type = llvm::FunctionType::get(*ret_type, llvm_args, false);
 
     llvm::Function* f = llvm::Function::Create(func_type, llvm::Function::ExternalLinkage, s.m_name,
-                                               program.m_module.get());
+                                               program.get_module());
 
     // Set names for all arguments.
     unsigned idx = 0;
@@ -368,7 +375,7 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic
 tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic::Function& f)
 {
     // First, check for an existing function from a previous 'extern' declaration.
-    llvm::Function* function = program.m_module->getFunction(f.m_sig.m_name);
+    llvm::Function* function = program.get_module()->getFunction(f.m_sig.m_name);
 
     if (!function) {
         auto funcorerr = codegen(program, f.m_sig);
@@ -379,7 +386,7 @@ tl::expected<llvm::Function*, Err> codegen(Program& program, const pom::semantic
     }
 
     // Create a new basic block to start insertion into.
-    llvm::BasicBlock* bb = llvm::BasicBlock::Create(*program.m_context, "entry", function);
+    llvm::BasicBlock* bb = llvm::BasicBlock::Create(program.context(), "entry", function);
     program.m_builder->SetInsertPoint(bb);
 
     // Record the function arguments in the NamedValues map.
@@ -428,30 +435,32 @@ tl::expected<Result, Err> codegen(const pom::semantic::TopLevel& top_level, bool
     }
 
     if (print_ir) {
-        program.m_module->print(llvm::outs(), nullptr);
+        program.get_module()->print(llvm::outs(), nullptr);
     }
 
-    auto handle = program.m_jit->addModule(std::move(program.m_module));
+    auto error = program.m_jit->addModule(std::move(*program.m_thread_safe_module));
+    if(!error) {
+        return tl::make_unexpected(Err{error.error().m_desc});
+    }
 
-    auto symbol = program.m_jit->findSymbol(lastfn);
+    auto symbol = program.m_jit->lookup(lastfn);
     if (!symbol) {
         return tl::make_unexpected(Err{fmt::format("Could not find symbol: {0}", lastfn)});
     }
 
     Result res;
     if (*tp == *pom::types::real()) {
-        double (*fp)() = (double (*)())(uint64_t)*symbol.getAddress();
+        double (*fp)() = (double (*)())(symbol->getAddress());
         res.m_ev       = fp();
     } else if (*tp == *pom::types::integer()) {
-        int64_t (*fp)() = (int64_t(*)())(uint64_t)*symbol.getAddress();
+        int64_t (*fp)() = (int64_t(*)())(symbol->getAddress());
         res.m_ev        = fp();
     } else if (*tp == *pom::types::boolean()) {
-        uint8_t (*fp)() = (uint8_t(*)())(uint64_t)*symbol.getAddress();
+        uint8_t (*fp)() = (uint8_t(*)())(symbol->getAddress());
         auto r          = fp();
         res.m_ev        = bool(r == 0 ? false : true);
     }
 
-    program.m_jit->removeModule(handle);
     return res;
 }
 

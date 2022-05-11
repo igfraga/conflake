@@ -2,6 +2,7 @@
 #include <fmt/format.h>
 #include <pol_basicoperators.h>
 #include <pom_basictypes.h>
+#include <map>
 #include <sstream>
 
 namespace pol {

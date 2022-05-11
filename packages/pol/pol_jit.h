@@ -1,47 +1,55 @@
 
 #pragma once
 
-#include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include <memory>
+#include <tl/expected.hpp>
+
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
+#include "llvm/ExecutionEngine/Orc/Core.h"
+#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
-#include "llvm/ExecutionEngine/Orc/LambdaResolver.h"
+#include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/DataLayout.h"
-#include "llvm/IR/Mangler.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/IR/LLVMContext.h"
 
 namespace pol {
 
 class Jit
 {
    public:
-    using ObjLayerT     = llvm::orc::LegacyRTDyldObjectLinkingLayer;
-    using CompileLayerT = llvm::orc::LegacyIRCompileLayer<ObjLayerT, llvm::orc::SimpleCompiler>;
-    using ModuleKey     = llvm::orc::VModuleKey;
+    struct Err
+    {
+        std::string m_desc;
+    };
 
-    Jit();
+    Jit(std::unique_ptr<llvm::orc::ExecutionSession> execution_session,
+        llvm::orc::JITTargetMachineBuilder           jtmb,
+        llvm::DataLayout                             data_layout);
 
-    llvm::TargetMachine& getTargetMachine() { return *m_tm; }
+    ~Jit();
 
-    ModuleKey addModule(std::unique_ptr<llvm::Module> M);
+    static std::unique_ptr<Jit> Create();
 
-    void removeModule(ModuleKey K);
+    const llvm::DataLayout& getDataLayout() const { return m_data_layout; }
 
-    llvm::JITSymbol findSymbol(const std::string Name) { return findMangledSymbol(mangle(Name)); }
+    llvm::orc::JITDylib& getMainJITDylib() { return m_main_jd; }
+
+    tl::expected<void, Err> addModule(llvm::orc::ThreadSafeModule  tsm,
+                                      llvm::orc::ResourceTrackerSP rt = nullptr);
+
+    tl::expected<llvm::JITEvaluatedSymbol, Err> lookup(llvm::StringRef name);
 
    private:
-    std::string mangle(const std::string& Name);
-
-    llvm::JITSymbol findMangledSymbol(const std::string& Name);
-
-    llvm::orc::ExecutionSession                m_es;
-    std::shared_ptr<llvm::orc::SymbolResolver> m_resolver;
-    std::unique_ptr<llvm::TargetMachine>       m_tm;
-    const llvm::DataLayout                     m_dl;
-    ObjLayerT                                  m_object_layer;
-    CompileLayerT                              m_compile_layer;
-    std::vector<ModuleKey>                     m_module_keys;
+    std::unique_ptr<llvm::orc::ExecutionSession> m_execution_session;
+    llvm::DataLayout                             m_data_layout;
+    llvm::orc::MangleAndInterner                 m_mangle;
+    llvm::orc::RTDyldObjectLinkingLayer          m_object_layer;
+    llvm::orc::IRCompileLayer                    m_compile_layer;
+    llvm::orc::JITDylib&                         m_main_jd;
 };
 
 }  // namespace pol

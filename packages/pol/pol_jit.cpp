@@ -1,96 +1,71 @@
 
 #include <pol_jit.h>
 
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/iterator_range.h"
-#include "llvm/ExecutionEngine/RTDyldMemoryManager.h"
-#include "llvm/ExecutionEngine/SectionMemoryManager.h"
-#include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/raw_ostream.h"
+#include <fmt/format.h>
 
 namespace pol {
 
-Jit::Jit()
-    : m_resolver(llvm::orc::createLegacyLookupResolver(
-          m_es,
-          [this](llvm::StringRef Name) { return findMangledSymbol(std::string(Name)); },
-          [](llvm::Error Err) { cantFail(std::move(Err), "lookupFlags failed"); })),
-      m_tm(llvm::EngineBuilder().selectTarget()),
-      m_dl(m_tm->createDataLayout()),
-      m_object_layer(llvm::AcknowledgeORCv1Deprecation,
-                     m_es,
-                     [this](ModuleKey) {
-                         return ObjLayerT::Resources{std::make_shared<llvm::SectionMemoryManager>(),
-                                                     m_resolver};
-                     }),
-      m_compile_layer(
-          llvm::AcknowledgeORCv1Deprecation, m_object_layer, llvm::orc::SimpleCompiler(*m_tm))
+Jit::Jit(std::unique_ptr<llvm::orc::ExecutionSession> execution_session,
+         llvm::orc::JITTargetMachineBuilder           jtmb,
+         llvm::DataLayout                             data_layout)
+    : m_execution_session(std::move(execution_session)),
+      m_data_layout(std::move(data_layout)),
+      m_mangle(*this->m_execution_session, this->m_data_layout),
+      m_object_layer(*this->m_execution_session, []() { return std::make_unique<llvm::SectionMemoryManager>(); }),
+      m_compile_layer(*this->m_execution_session, m_object_layer, std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(jtmb))),
+      m_main_jd(this->m_execution_session->createBareJITDylib("<main>"))
 {
-    llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
+    m_main_jd.addGenerator(
+        cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(m_data_layout.getGlobalPrefix())));
 }
 
-Jit::ModuleKey Jit::addModule(std::unique_ptr<llvm::Module> mod)
+Jit::~Jit()
 {
-    auto key = m_es.allocateVModule();
-    cantFail(m_compile_layer.addModule(key, std::move(mod)));
-    m_module_keys.push_back(key);
-    return key;
-}
-
-void Jit::removeModule(ModuleKey key)
-{
-    m_module_keys.erase(llvm::find(m_module_keys, key));
-    cantFail(m_compile_layer.removeModule(key));
-}
-
-std::string Jit::mangle(const std::string& name)
-{
-    std::string mangled_name;
-    {
-        llvm::raw_string_ostream mangled_name_stream(mangled_name);
-        llvm::Mangler::getNameWithPrefix(mangled_name_stream, name, m_dl);
+    if (auto Err = m_execution_session->endSession()) {
+        m_execution_session->reportError(std::move(Err));
     }
-    return mangled_name;
 }
 
-llvm::JITSymbol Jit::findMangledSymbol(const std::string& name)
+std::unique_ptr<Jit> Jit::Create()
 {
-#ifdef _WIN32
-    // The symbol lookup of ObjectLinkingLayer uses the SymbolRef::SF_Exported
-    // flag to decide whether a symbol will be visible or not, when we call
-    // IRCompileLayer::findSymbolIn with ExportedSymbolsOnly set to true.
-    //
-    // But for Windows COFF objects, this flag is currently never set.
-    // For a potential solution see: https://reviews.llvm.org/rL258665
-    // For now, we allow non-exported symbols on Windows as a workaround.
-    const bool exported_symbols_only = false;
-#else
-    const bool exported_symbols_only = true;
-#endif
-
-    // Search modules in reverse order: from last added to first added.
-    // This is the opposite of the usual search order for dlsym, but makes more
-    // sense in a REPL where we want to bind to the newest available definition.
-    for (auto h : llvm::make_range(m_module_keys.rbegin(), m_module_keys.rend()))
-        if (auto sym = m_compile_layer.findSymbolIn(h, name, exported_symbols_only)) {
-            return sym;
-        }
-
-    // If we can't find the symbol in the JIT, try looking in the host process.
-    if (auto sym_addr = llvm::RTDyldMemoryManager::getSymbolAddressInProcess(name)) {
-        return llvm::JITSymbol(sym_addr, llvm::JITSymbolFlags::Exported);
+    auto epc = llvm::orc::SelfExecutorProcessControl::Create();
+    if (!epc) {
+        assert(0);
+        return nullptr;
     }
 
-#ifdef _WIN32
-    // For Windows retry without "_" at beginning, as RTDyldMemoryManager uses
-    // GetProcAddress and standard libraries like msvcrt.dll use names
-    // with and without "_" (for example "_itoa" but "sin").
-    if (name.length() > 2 && name[0] == '_')
-        if (auto sym_addr = RTDyldMemoryManager::getSymbolAddressInProcess(name.substr(1)))
-            return JITSymbol(sym_addr, JITSymbolFlags::Exported);
-#endif
+    auto execution_session = std::make_unique<llvm::orc::ExecutionSession>(std::move(*epc));
 
-    return nullptr;
+    llvm::orc::JITTargetMachineBuilder jtmb(execution_session->getExecutorProcessControl().getTargetTriple());
+
+    auto dl = jtmb.getDefaultDataLayoutForTarget();
+    if (!dl) {
+        assert(0);
+        return nullptr;
+    }
+
+    return std::make_unique<Jit>(std::move(execution_session), std::move(jtmb), std::move(*dl));
+}
+
+tl::expected<void, Jit::Err> Jit::addModule(llvm::orc::ThreadSafeModule tsm, llvm::orc::ResourceTrackerSP resource_tracker)
+{
+    if (!resource_tracker) {
+        resource_tracker = m_main_jd.getDefaultResourceTracker();
+    }
+    auto error = m_compile_layer.add(resource_tracker, std::move(tsm));
+    if(error) {
+        return tl::make_unexpected(Err{"Failed to add module"});
+    }
+    return {};
+}
+
+tl::expected<llvm::JITEvaluatedSymbol, Jit::Err> Jit::lookup(llvm::StringRef name)
+{
+    auto found = m_execution_session->lookup({&m_main_jd}, m_mangle(name.str()));
+    if(!found) {
+        return tl::make_unexpected(Err{fmt::format("Error finding symbol: {0}", name)});
+    }
+    return found.get();
 }
 
 }  // namespace pol
