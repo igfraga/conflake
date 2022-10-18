@@ -3,8 +3,6 @@
 
 #include <cstdint>
 #include <iosfwd>
-#include <variant>
-#include <vector>
 
 namespace pom {
 

@@ -13,8 +13,10 @@ macro(conflake_library_flags target)
     target_compile_features(${target} PRIVATE cxx_std_20)
 endmacro()
 
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_define_targets()
+include(${CMAKE_BINARY_DIR}/conan_paths.cmake)
+
+find_package(Catch2 3 REQUIRED)
+find_package(fmt REQUIRED)
 
 add_subdirectory(thirdparty)
 add_subdirectory(packages/pom pom)

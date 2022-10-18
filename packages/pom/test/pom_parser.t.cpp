@@ -4,9 +4,10 @@
 #include <pom_lexer.h>
 #include <pom_parser.h>
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 
 #include <filesystem>
+#include <numeric>
 
 TEST_CASE("Test parser files", "[parser]")
 {

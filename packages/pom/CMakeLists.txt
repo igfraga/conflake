@@ -32,7 +32,7 @@ conflake_source_groups(pom)
 
 target_include_directories(pom PUBLIC .)
 
-target_link_libraries(pom PUBLIC CONAN_PKG::fmt tl::expected)
+target_link_libraries(pom PUBLIC fmt::fmt tl::expected)
 
 conflake_library_flags(pom)
 

@@ -2,12 +2,11 @@
 project(pol_test)
 
 add_executable(pol_test
-    test.cpp
     pol_all.t.cpp
 )
 
 target_link_libraries(pol_test PRIVATE
-    CONAN_PKG::catch2
+    Catch2::Catch2WithMain
     pol
 )
 

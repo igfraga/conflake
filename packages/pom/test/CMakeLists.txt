@@ -1,14 +1,13 @@
 
 project(pom_test)
 
-add_executable(pom_test 
-    test.cpp
+add_executable(pom_test
     pom_lexer.t.cpp
     pom_parser.t.cpp
 )
 
 target_link_libraries(pom_test PRIVATE
-    CONAN_PKG::catch2
+    Catch2::Catch2WithMain
     pom
 )
 
