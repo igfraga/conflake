@@ -1,3 +1,7 @@
+I wanted to try out LLVM, so I made this small, incomplete functional programming language.
+
+To build:
+
 - (init submodules)
 - mdkir build
 - cd build
